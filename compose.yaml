@@ -1,0 +1,7 @@
+﻿services:
+  docvault:
+    image: notevault
+    build:
+      context: .
+      dockerfile: Dockerfile
+
