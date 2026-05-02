@@ -1,3 +1,6 @@
+using DocVault.Database;
+using Microsoft.EntityFrameworkCore;
+
 namespace DocVault;
 
 public class Program
@@ -8,9 +11,15 @@ public class Program
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();
-
+        
+        builder.Services.AddDbContext<AppDbContext>(optionsBuilder =>
+        {
+            optionsBuilder.UseNpgsql(builder.Configuration["DbConnectionString"]!);
+        });
+        
+        
         var app = builder.Build();
-
+        
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
         {

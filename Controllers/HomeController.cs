@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DocVault.Database;
 using Microsoft.AspNetCore.Mvc;
 using DocVault.Models;
 
@@ -8,9 +9,12 @@ public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
 
-    public HomeController(ILogger<HomeController> logger)
+    private readonly AppDbContext _context;
+    
+    public HomeController(ILogger<HomeController> logger, AppDbContext context)
     {
         _logger = logger;
+        _context = context;
     }
 
     public IActionResult Index()
