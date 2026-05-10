@@ -1,4 +1,4 @@
-namespace DocVault.Models;
+namespace NoteVault.Models;
 
 public class ErrorViewModel
 {

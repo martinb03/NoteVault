@@ -7,17 +7,17 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["DocVault.csproj", "./"]
-RUN dotnet restore "DocVault.csproj"
+COPY ["NoteVault.csproj", "./"]
+RUN dotnet restore "NoteVault.csproj"
 COPY . .
 WORKDIR "/src/"
-RUN dotnet build "./DocVault.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./NoteVault.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./DocVault.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./NoteVault.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "DocVault.dll"]
+ENTRYPOINT ["dotnet", "NoteVault.dll"]

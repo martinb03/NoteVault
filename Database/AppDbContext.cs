@@ -1,6 +1,7 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace DocVault.Database;
+namespace NoteVault.Database;
 
 public class AppDbContext : DbContext
 {
