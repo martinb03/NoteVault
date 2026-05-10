@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NoteVault.Database;
+using NoteVault.Models;
 
 namespace NoteVault;
 
@@ -17,6 +19,9 @@ public class Program
             optionsBuilder.UseNpgsql(builder.Configuration["DbConnectionString"]!);
         });
         
+        builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
         
         var app = builder.Build();
         
@@ -32,7 +37,8 @@ public class Program
         app.UseStaticFiles();
 
         app.UseRouting();
-
+        
+        app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapControllerRoute(
