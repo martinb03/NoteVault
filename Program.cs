@@ -1,7 +1,7 @@
-using DocVault.Database;
 using Microsoft.EntityFrameworkCore;
+using NoteVault.Database;
 
-namespace DocVault;
+namespace NoteVault;
 
 public class Program
 {

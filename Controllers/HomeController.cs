@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using DocVault.Database;
 using Microsoft.AspNetCore.Mvc;
-using DocVault.Models;
+using NoteVault.Database;
+using NoteVault.Models;
 
-namespace DocVault.Controllers;
+namespace NoteVault.Controllers;
 
 public class HomeController : Controller
 {
