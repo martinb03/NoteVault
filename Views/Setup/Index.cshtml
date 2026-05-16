@@ -2,13 +2,13 @@
 
 @{
     ViewData["Title"] = "Setup";
-    Layout = "_Layout";
+    Layout = "_AuthLayout";
 }
 
 <div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
     <div class="card shadow" style="width: 400px;">
         <div class="card-body p-4">
-            <h3 class="card-title text-center mb-2">NoteVault</h3>
+            <!--h3 class="card-title text-center mb-2">NoteVault</!--h3-->
             <p class="text-center text-muted mb-4">Create your admin account to get started.</p>
 
             <form asp-action="Index" method="post">
@@ -43,3 +43,15 @@
         </div>
     </div>
 </div>
+<script>
+    function togglePassword(inputId, button) {
+        var input = document.getElementById(inputId);
+        if (input.type === "password") {
+            input.type = "text";
+            button.textContent = "Hide";
+        } else {
+            input.type = "password";
+            button.textContent = "Show";
+        }
+    }
+</script>

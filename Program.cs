@@ -31,6 +31,12 @@ public class Program
             })
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
+        builder.Services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/Account/Login";
+            options.ExpireTimeSpan = TimeSpan.FromHours(24);
+            options.SlidingExpiration = true;
+        });
         
         var app = builder.Build();
         
