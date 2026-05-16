@@ -28,7 +28,10 @@
 
                 <div class="mb-3">
                     <label asp-for="Password" class="form-label"></label>
-                    <input asp-for="Password" class="form-control" placeholder="Minimum 10 characters" />
+                    <div class="input-group">
+                        <input asp-for="Password" class="form-control" placeholder="Minimum 10 characters" id="passwordInput" />
+                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('passwordInput', this)">Show</button>
+                    </div>
                     <span asp-validation-for="Password" class="text-danger"></span>
                 </div>
 
