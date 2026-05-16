@@ -31,6 +31,23 @@
                 <li class="nav-item">
                     <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Tags">Tags</a>
                 </li>
+                <li class="nav-item">
+                    <div class="dropdown ms-3">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                @User.FindFirst("DisplayName")?.Value
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <form asp-controller="Account" asp-action="Logout" method="post">
+                                        <button type="submit" class="dropdown-item">Log out</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        }
+                    </div>
+                </li>
             </ul>
         </div>
     </nav>

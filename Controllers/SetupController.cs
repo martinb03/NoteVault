@@ -73,6 +73,7 @@ public class SetupController : Controller
         if (result.Succeeded)
         {
             await _userManager.AddToRoleAsync(user, "Admin");
+            await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("DisplayName", user.DisplayName));
             await _signInManager.SignInAsync(user, isPersistent: false);
             return RedirectToAction("Index", "Home");
         }
