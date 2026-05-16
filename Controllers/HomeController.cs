@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using NoteVault.Database;
 using NoteVault.Models;
@@ -11,14 +12,21 @@ public class HomeController : Controller
 
     private readonly AppDbContext _context;
     
-    public HomeController(ILogger<HomeController> logger, AppDbContext context)
+    private readonly UserManager<ApplicationUser> _userManager;
+    
+    public HomeController(ILogger<HomeController> logger, AppDbContext context, UserManager<ApplicationUser> userManager)
     {
         _logger = logger;
         _context = context;
+        _userManager = userManager;
     }
 
     public IActionResult Index()
     {
+        if (!_userManager.Users.Any())
+        {
+            return RedirectToAction("Index", "Setup");
+        }
         return View();
     }
 
