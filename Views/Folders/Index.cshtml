@@ -1,0 +1,105 @@
+@model List<NoteVault.ViewModels.FolderListViewModel>
+
+@{
+    ViewData["Title"] = "Folders";
+    Layout = "_Layout";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">Folders</h4>
+        <a asp-action="Create" class="btn btn-primary">New Folder</a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="text-center text-muted py-5">
+            <p class="mb-2">No folders yet.</p>
+            <a asp-action="Create">Create your first folder</a>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="list-group list-group-flush">
+                @foreach (var folder in Model)
+                {
+                    <div class="list-group-item d-flex align-items-center py-3">
+                        <!-- Folder icon, name and description -->
+                        <a asp-action="Details" asp-route-id="@folder.Id" class="text-decoration-none text-dark d-flex align-items-center" style="flex: 2;">
+                            <span class="me-3" style="font-size: 1.3rem;">📁</span>
+                            <strong class="text-dark me-3">@folder.Name</strong>
+                            <span class="text-muted text-truncate ms-4" style="max-width: 300px;">@(folder.Description ?? "")</span>
+                        </a>
+                        
+                        <!-- Counts -->
+                        <span class="text-muted" style="flex: 1;">
+                            @folder.NoteCount @(folder.NoteCount == 1 ? "note" : "notes") · @folder.PileCount @(folder.PileCount == 1 ? "pile" : "piles")
+                        </span>
+
+                        <!-- Date -->
+                        <span class="text-muted" style="flex: 1;">
+                            @folder.CreatedAt.ToString("dd/MM/yyyy")
+                        </span>
+
+                        <!-- Actions dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                <span style="font-size: 1.2rem;">⋮</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@folder.Id">Edit</a></li>
+                                <li><a class="dropdown-item" href="#">Export</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteFolderModal"
+                                            onclick="setDeleteFolder(@folder.Id, '@folder.Name')">
+                                        Delete
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Delete Folder Modal -->
+<div class="modal fade" id="deleteFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Folder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This action will move all the contents of <strong id="deleteFolderName"></strong> to the trash.</p>
+                <p class="text-muted">Make sure to move or export any notes or piles you might need.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="Delete" method="post" id="deleteFolderForm">
+                    <input type="hidden" name="id" id="deleteFolderId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function setDeleteFolder(id, name) {
+        document.getElementById('deleteFolderId').value = id;
+        document.getElementById('deleteFolderName').textContent = name;
+    }
+</script>
