@@ -10,32 +10,32 @@
 </head>
 <body><!-- style="font-family: 'Adwaita Mono'"-->
 <header >
-    <nav class="avbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3 d-flex justify-content-between align-items-center px-5" style="height: 75px">
+    <nav class="navbar navbar-expand-sm navbar-light border-bottom box-shadow mb-3 d-flex justify-content-between align-items-center px-5" style="height: 75px; background-color: #FF8C42">
         <div style="flex: 1;">
-            <a class="navbar-brand text-dark" asp-area="" asp-controller="Home" asp-action="Index">
+            <a class="navbar-brand text-white" asp-area="" asp-controller="Home" asp-action="Index">
                 <!-- <img class="logo-image", src=""/>-->
-                <span class="logo-text" style="font-size:30px ; font-weight: bold">NoteVault</span>
+                <span class="logo-text" style="font-size:30px ; font-weight: bold; text-shadow: 0 0 2px black;" >NoteVault</span>
             </a>
         </div>
         <form method="GET" class="mx-auto" role="search" action="http://localhost:8080">
             <input type="text" class="form-control rounded-pill" placeholder="Search..." style="width: 300px; font-size: 15px" />
         </form>
         <div style="flex:1;" class="d-flex justify-content-end" >
-            <ul class="navbar-nav flex-row gap-3">
+            <ul class="navbar-nav flex-row gap-3" style="text-shadow: 0 0 1px black; font-weight: bold">
                 <li class="nav-item">
-                    <a class="nav-link text-dark" asp-area="" asp-controller="Folders" asp-action="Index">Folders</a>
+                    <a class="nav-link text-white" asp-area="" asp-controller="Folders" asp-action="Index">Folders</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Notes">Notes</a>
+                    <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Notes">Notes</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Tags">Tags</a>
+                    <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Tags">Tags</a>
                 </li>
                 <li class="nav-item">
                     <div class="dropdown ms-3">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
                                 @User.FindFirst("DisplayName")?.Value
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">

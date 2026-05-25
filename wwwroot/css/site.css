@@ -12,6 +12,21 @@ html {
   box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
 
+.btn-primary {
+  background-color: #ff8c42;
+  border-color: #ff8c42;
+}
+
+.btn-primary:hover{
+  background-color: #e07a35;
+  border-color: #e07a35;
+}
+
+.btn-primary:active, .btn-primary:focus{
+  background-color: #cc6e2e;
+  border-color: #cc6e2e;
+}
+
 html {
   position: relative;
   min-height: 100%;
@@ -20,4 +35,5 @@ html {
 body {
   margin-bottom: 60px;
   font-family: "Adwaita Mono", monospace;
+  background: #f4f4f4;
 }

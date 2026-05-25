@@ -5,11 +5,11 @@
     Layout = "_AuthLayout";
 }
 
-<div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
     <div class="card shadow" style="width: 400px;">
         <div class="card-body p-4">
             <!--<h3 class="card-title text-center mb-2">NoteVault</h3>-->
-            <p class="text-center text-muted mb-4">Log in to your account.</p>
+            <p class="text-center mb-4" style="font-weight: bold; font-size: 28px; ">Log in</p>
 
             <form asp-action="Login" method="post">
                 <div asp-validation-summary="All" class="text-danger mb-3"></div>
@@ -33,8 +33,10 @@
                     <input asp-for="RememberMe" class="form-check-input" />
                     <label asp-for="RememberMe" class="form-check-label"></label>
                 </div>
-
-                <button type="submit" class="btn btn-primary w-100">Log In</button>
+                <div class="d-flex align-items-center justify-content-center">
+                    <button type="submit" class="btn btn-primary w-50 ">Log In</button>
+                </div>
+                
             </form>
         </div>
     </div>
