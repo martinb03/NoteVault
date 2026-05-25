@@ -123,7 +123,7 @@ public class FoldersController : Controller
  
         await _context.SaveChangesAsync();
  
-        return RedirectToAction("Index");
+        return RedirectToAction("Details", new{id = model.Id});
     }
     
     [HttpPost]
@@ -160,5 +160,72 @@ public class FoldersController : Controller
  
         TempData["Success"] = $"Folder \"{folder.Name}\" and its contents moved to trash.";
         return RedirectToAction("Index");
+    }
+    
+    [HttpGet]
+    public async Task<IActionResult> Details(int id)
+    {
+        var userId = _userManager.GetUserId(User);
+ 
+        var folder = await _context.Folders
+            .Include(f => f.Piles)
+                .ThenInclude(p => p.PileNotes)
+            .Include(f => f.Notes)
+            .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+ 
+        if (folder == null) return NotFound();
+ 
+        var pileNoteIds = folder.Piles
+            .SelectMany(p => p.PileNotes)
+            .Select(pn => pn.NoteId)
+            .ToHashSet();
+ 
+        var model = new FolderDetailsViewModel
+        {
+            Id = folder.Id,
+            Name = folder.Name,
+            Description = folder.Description,
+            CreatedAt = folder.CreatedAt,
+            UpdatedAt = folder.UpdatedAt,
+            PinnedPiles = folder.Piles
+                .Where(p => p.IsPinned)
+                .OrderBy(p => p.SortOrder)
+                .Select(p => new PileListViewModel
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Color = p.Color,
+                    Icon = p.Icon,
+                    IsPinned = p.IsPinned,
+                    NoteCount = p.PileNotes.Count
+                })
+                .ToList(),
+            Piles = folder.Piles
+                .Where(p => !p.IsPinned)
+                .OrderBy(p => p.SortOrder)
+                .Select(p => new PileListViewModel
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Color = p.Color,
+                    Icon = p.Icon,
+                    IsPinned = p.IsPinned,
+                    NoteCount = p.PileNotes.Count
+                })
+                .ToList(),
+            Notes = folder.Notes
+                .Where(n => !pileNoteIds.Contains(n.Id))
+                .OrderByDescending(n => n.UpdatedAt)
+                .Select(n => new NoteListViewModel
+                {
+                    Id = n.Id,
+                    Title = n.Title,
+                    CreatedAt = n.CreatedAt,
+                    UpdatedAt = n.UpdatedAt
+                })
+                .ToList()
+        };
+ 
+        return View(model);
     }
 }

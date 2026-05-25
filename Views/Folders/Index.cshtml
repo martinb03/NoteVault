@@ -49,24 +49,6 @@
                         <span class="text-muted" style="flex: 1;">
                             @folder.CreatedAt.ToString("dd/MM/yyyy")
                         </span>
-
-                        <!-- Actions dropdown -->
-                        <div class="dropdown">
-                            <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
-                                <span style="font-size: 1.2rem;">⋮</span>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@folder.Id">Edit</a></li>
-                                <li><a class="dropdown-item" href="#">Export</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteFolderModal"
-                                            onclick="setDeleteFolder(@folder.Id, '@folder.Name')">
-                                        Delete
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
                     </div>
                 }
             </div>

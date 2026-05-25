@@ -1,0 +1,260 @@
+@model NoteVault.ViewModels.FolderDetailsViewModel
+
+@{
+    ViewData["Title"] = Model.Name;
+    Layout = "_Layout";
+}
+
+<div class="container mt-4">
+    <!-- Back link -->
+    <a asp-action="Index" class="text-decoration-none mb-3 d-inline-block">← Back to Folders</a>
+
+    <div class="row">
+        <!-- Main content -->
+        <div class="col-md-9" style="background-color: #ffffff; padding: 20px">
+            <!-- Folder header -->
+            <div class="mb-4" >
+                <h4 class="mb-1">📁 @Model.Name</h4>
+                @if (!string.IsNullOrEmpty(Model.Description))
+                {
+                    <p class="text-muted mb-0">@Model.Description</p>
+                }
+            </div>
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show">
+                    @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <!-- Pinned Piles -->
+            @if (Model.PinnedPiles.Any())
+            {
+                <h6 class="text-muted text-uppercase small mb-2 mt-4">Pinned Piles</h6>
+                <div class="card mb-3">
+                    <div class="list-group list-group-flush">
+                        @foreach (var pile in Model.PinnedPiles)
+                        {
+                            <div class="list-group-item d-flex align-items-center py-3">
+                                <a asp-controller="Piles" asp-action="Details" asp-route-id="@pile.Id" class="text-decoration-none text-dark d-flex align-items-center" style="flex: 3;">
+                                    <span class="me-3" style="color: @(pile.Color ?? "#6c757d"); font-size: 1.1rem;">📌</span>
+                                    <strong>@pile.Name</strong>
+                                </a>
+                                <span class="text-muted" style="flex: 1;">
+                                    @pile.NoteCount @(pile.NoteCount == 1 ? "note" : "notes")
+                                </span>
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                        <span style="font-size: 1.2rem;">⋮</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" asp-controller="Piles" asp-action="Edit" asp-route-id="@pile.Id">Edit</a></li>
+                                        <li><a class="dropdown-item" href="#">Export</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deletePileModal"
+                                                    onclick="setDeletePile(@pile.Id, '@pile.Name')">
+                                                Delete
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Regular Piles -->
+            @if (Model.Piles.Any())
+            {
+                <h6 class="text-muted text-uppercase small mb-2 mt-4">Piles</h6>
+                <div class="card mb-3">
+                    <div class="list-group list-group-flush">
+                        @foreach (var pile in Model.Piles)
+                        {
+                            <div class="list-group-item d-flex align-items-center py-3">
+                                <a asp-controller="Piles" asp-action="Details" asp-route-id="@pile.Id" class="text-decoration-none text-dark d-flex align-items-center" style="flex: 3;">
+                                    <span class="me-3" style="color: @(pile.Color ?? "#6c757d"); font-size: 1.1rem;">📦</span>
+                                    <strong>@pile.Name</strong>
+                                </a>
+                                <span class="text-muted" style="flex: 1;">
+                                    @pile.NoteCount @(pile.NoteCount == 1 ? "note" : "notes")
+                                </span>
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                        <span style="font-size: 1.2rem;">⋮</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" asp-controller="Piles" asp-action="Edit" asp-route-id="@pile.Id">Edit</a></li>
+                                        <li><a class="dropdown-item" href="#">Export</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deletePileModal"
+                                                    onclick="setDeletePile(@pile.Id, '@pile.Name')">
+                                                Delete
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Notes -->
+            @if (Model.Notes.Any())
+            {
+                <h6 class="text-muted text-uppercase small mb-2 mt-4">Notes</h6>
+                <div class="card mb-3">
+                    <div class="list-group list-group-flush">
+                        @foreach (var note in Model.Notes)
+                        {
+                            <div class="list-group-item d-flex align-items-center py-3">
+                                <a asp-controller="Notes" asp-action="Edit" asp-route-id="@note.Id" class="text-decoration-none text-dark d-flex align-items-center" style="flex: 3;">
+                                    <span class="me-3" style="font-size: 1.1rem;">📝</span>
+                                    <strong>@note.Title</strong>
+                                </a>
+                                <span class="text-muted" style="flex: 1;">
+                                    @note.UpdatedAt.ToString("dd/MM/yyyy")
+                                </span>
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                        <span style="font-size: 1.2rem;">⋮</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" asp-controller="Notes" asp-action="Edit" asp-route-id="@note.Id">Edit</a></li>
+                                        <li><a class="dropdown-item" href="#">Export</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteNoteModal"
+                                                    onclick="setDeleteNote(@note.Id, '@note.Title')">
+                                                Delete
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Empty state -->
+            @if (!Model.PinnedPiles.Any() && !Model.Piles.Any() && !Model.Notes.Any())
+            {
+                <div class="text-center text-muted py-5">
+                    <p>This folder is empty.</p>
+                    <p>Create a note or pile to get started.</p>
+                </div>
+            }
+        </div>
+
+        <!-- Action sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    <a asp-controller="Notes" asp-action="Create" asp-route-folderId="@Model.Id" class="list-group-item list-group-item-action">
+                        📝 New Note
+                    </a>
+                    <a asp-controller="Piles" asp-action="Create" asp-route-folderId="@Model.Id" class="list-group-item list-group-item-action">
+                        📦 New Pile
+                    </a>
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="list-group-item list-group-item-action">
+                        ✏️ Edit
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action">
+                        📥 Export
+                    </a>
+                    <button class="list-group-item list-group-item-action text-danger" data-bs-toggle="modal" data-bs-target="#deleteFolderModal">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Folder Modal -->
+<div class="modal fade" id="deleteFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Folder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This action will move all the contents of <strong>@Model.Name</strong> to the trash.</p>
+                <p class="text-muted">Make sure to move or export any notes or piles you might need.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="Delete" method="post">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Pile Modal -->
+<div class="modal fade" id="deletePileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Pile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deletePileName"></strong>?</p>
+                <p class="text-muted">Notes inside this pile will remain in the folder.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-controller="Piles" asp-action="Delete" method="post" id="deletePileForm">
+                    <input type="hidden" name="id" id="deletePileId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Note Modal -->
+<div class="modal fade" id="deleteNoteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteNoteName"></strong>?</p>
+                <p class="text-muted">This note will be moved to the trash.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-controller="Notes" asp-action="Delete" method="post" id="deleteNoteForm">
+                    <input type="hidden" name="id" id="deleteNoteId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function setDeletePile(id, name) {
+        document.getElementById('deletePileId').value = id;
+        document.getElementById('deletePileName').textContent = name;
+    }
+
+    function setDeleteNote(id, name) {
+        document.getElementById('deleteNoteId').value = id;
+        document.getElementById('deleteNoteName').textContent = name;
+    }
+</script>
