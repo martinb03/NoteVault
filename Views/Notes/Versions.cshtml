@@ -1,0 +1,56 @@
+@model NoteVault.ViewModels.VersionListPageViewModel
+
+@{
+    ViewData["Title"] = "Versions";
+    Layout = "_Layout";
+}
+
+<div class="container mt-4">
+    <a asp-action="Details" asp-route-id="@Model.NoteId" class="text-decoration-none mb-3 d-inline-block">← Back to Note</a>
+
+    <h4 class="mb-1">Versions</h4>
+    <p class="text-muted mb-4">Version history for "@Model.NoteTitle"</p>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model.Versions.Count == 0)
+    {
+        <div class="text-center text-muted py-5">
+            <p>No versions saved yet.</p>
+            <p>Open the note editor and click "Save Version" to create one.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="list-group list-group-flush">
+                @foreach (var version in Model.Versions)
+                {
+                    <a asp-action="VersionDetails" asp-route-id="@version.Id" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
+                        <span class="me-3" style="font-size: 1.1rem;">🕒</span>
+                        <div style="flex: 3;">
+                            @if (!string.IsNullOrEmpty(version.Name))
+                            {
+                                <strong class="text-dark">@version.Name ·</strong>
+                                <small class="text-muted">Version @version.VersionNumber</small>
+                            }
+                            else
+                            {
+                                <strong class="text-dark">Version @version.VersionNumber</strong>
+                            }
+                        </div>
+                        <span class="text-muted text-end" style="flex: 1; padding-right: 15px;">
+                            <partial name="_LocalDate" model="version.CreatedAt"/>
+                        </span>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>

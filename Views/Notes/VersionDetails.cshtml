@@ -1,0 +1,122 @@
+@model NoteVault.ViewModels.VersionDetailsViewModel
+
+@{
+    ViewData["Title"] = $"Version {Model.VersionNumber}";
+    Layout = "_Layout";
+}
+
+<div class="container mt-4">
+    <a asp-action="Versions" asp-route-id="@Model.NoteId" class="text-decoration-none mb-3 d-inline-block">← Back to Versions</a>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Main content -->
+        <div class="col-md-9">
+            <div class="mb-3">
+                @if (!string.IsNullOrEmpty(Model.Name))
+                {
+                    <h4 class="mb-1">🕒 @Model.Name</h4>
+                    <p class="text-muted mb-1">@Model.Name</p>
+                }
+                else
+                {
+                    <h4 class="mb-1">🕒 Version @Model.VersionNumber</h4>
+                }
+                <small class="text-muted">
+                    From "@Model.NoteTitle" · Saved at: 
+                    <partial name="_LocalDate" model="Model.CreatedAt"/>
+                </small>
+            </div>
+
+            <div class="card">
+                <div class="card-body" style="min-height: 400px;">
+                    @if (string.IsNullOrWhiteSpace(Model.Content))
+                    {
+                        <p class="text-muted">This version has no content.</p>
+                    }
+                    else
+                    {
+                        @Html.Raw(Model.Content)
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-3" style="padding-top: 100px">
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#editTitleModal">
+                        ✏️ Edit Title
+                    </button>
+                    <form asp-action="RestoreVersion" method="post" class="m-0">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="list-group-item list-group-item-action w-100 text-start">
+                            ↩️ Restore This Version
+                        </button>
+                    </form>
+                    <a href="#" class="list-group-item list-group-item-action">
+                        📥 Export
+                    </a>
+                    <button class="list-group-item list-group-item-action text-danger" data-bs-toggle="modal" data-bs-target="#deleteVersionModal">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Name Modal -->
+<div class="modal fade" id="editTitleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Version Title</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="UpdateVersionName" method="post">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <div class="modal-body">
+                    <label class="form-label">Title <span class="text-muted">(optional)</span></label>
+                    <input type="text" name="name" class="form-control" value="@Model.Name" placeholder="e.g. Before refactor" />
+                    <small class="text-muted">Leave blank to remove the title.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Version Modal -->
+<div class="modal fade" id="deleteVersionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Version</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>Version @Model.VersionNumber</strong>?</p>
+                <p class="text-danger">This action is permanent and cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="DeleteVersion" method="post">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

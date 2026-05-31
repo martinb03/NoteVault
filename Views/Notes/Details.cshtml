@@ -1,0 +1,135 @@
+@model NoteVault.ViewModels.NoteDetailsViewModel
+
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "_Layout";
+}
+
+<div class="container mt-4">
+    <a asp-action="Index" class="text-decoration-none mb-3 d-inline-block">← Back to Notes</a>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Main content -->
+        <div class="col-md-9">
+            <div class="mb-3">
+                <h4 class="mb-1">📝 @Model.Title</h4>
+                <small class="text-muted">
+                    @if (!string.IsNullOrEmpty(Model.FolderName))
+                    {
+                        <span>📁 @Model.FolderName · </span>
+                    }
+                    Updated at: 
+                    <partial name="_LocalDate" model="Model.UpdatedAt"/>
+                    · @Model.VersionCount @(Model.VersionCount == 1 ? "version" : "versions")
+                </small>
+            </div>
+
+            <!-- Content preview -->
+            <div class="card">
+                <div class="card-body" style="min-height: 400px;">
+                    @if (string.IsNullOrWhiteSpace(Model.Content))
+                    {
+                        <p class="text-muted">This note is empty. Click 'Edit' to start writing.</p>
+                    }
+                    else
+                    {
+                        @Html.Raw(Model.Content)
+                    }
+                </div>
+            </div>
+        </div>
+        <!-- Sidebar -->
+        <div class="col-md-3" style="padding-top: 73px">
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="list-group-item list-group-item-action">
+                        ✏️ Edit
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action">
+                        📥 Export
+                    </a>
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#changeFolderModal">
+                        📁 Change Parent Folder
+                    </button>
+                    <a asp-action="Versions" asp-route-id="@Model.Id" class="list-group-item list-group-item-action">
+                        🕒 View Versions
+                    </a>
+                    <button class="list-group-item list-group-item-action text-danger" data-bs-toggle="modal" data-bs-target="#deleteNoteModal">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Folder Modal -->
+<div class="modal fade" id="changeFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change Parent Folder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="ChangeFolder" method="post" id="changeFolderForm">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <div class="modal-body">
+                    <label class="form-label">Folder</label>
+                    <select name="folderId" class="form-select" id="folderSelect">
+                        <option value="" selected="@(Model.FolderId == null)">Unfiled</option>
+                        @foreach (var folder in Model.AvailableFolders)
+                        {
+                            <option value="@folder.Id" selected="@(folder.Id == Model.FolderId)">@folder.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveFolderBtn" disabled>Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Note Modal -->
+<div class="modal fade" id="deleteNoteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>@Model.Title</strong>?</p>
+                <p class="text-muted">This note will be moved to the trash.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="Delete" method="post">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Enable Save button only when folder selection changes
+    const folderSelect = document.getElementById('folderSelect');
+    const saveBtn = document.getElementById('saveFolderBtn');
+    const initialFolderId = '@(Model.FolderId?.ToString() ?? "")';
+
+    folderSelect.addEventListener('change', () => {
+        saveBtn.disabled = folderSelect.value === initialFolderId;
+    });
+</script>

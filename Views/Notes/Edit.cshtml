@@ -1,0 +1,158 @@
+@model NoteVault.ViewModels.EditNoteViewModel
+
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "_Layout";
+}
+
+<!-- Quill CSS -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet" />
+
+<style>
+    .note-title-input {
+        font-size: 1.75rem;
+        font-weight: 600;
+        border: 1px dashed transparent;
+        background: transparent;
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        transition: border-color 0.2s;
+    }
+    .note-title-input:hover {
+        border-color: #dee2e6;
+    }
+    .note-title-input:focus {
+        border-color: #FF8C42;
+        outline: none;
+        background: white;
+    }
+    #editor {
+        min-height: 500px;
+        font-size: 1rem;
+    }
+    .ql-toolbar.ql-snow {
+        border-radius: 6px 6px 0 0;
+    }
+    .ql-container.ql-snow {
+        border-radius: 0 0 6px 6px;
+    }
+</style>
+
+<div class="container mt-4">
+    <a asp-action="Details" asp-route-id="@Model.Id" class="text-decoration-none mb-3 d-inline-block">← Back to Note</a>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Status bar -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <small class="text-muted" id="saveStatus">
+            Last saved:
+            <partial name="_LocalDate" model="Model.UpdatedAt"/>
+        </small>
+        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#saveVersionModal">
+            Save Version
+        </button>
+    </div>
+
+    <!-- Inline title (BookStack style) -->
+    <input type="text" id="noteTitle" class="note-title-input mb-2" value="@Model.Title" placeholder="Untitled note" />
+
+    <!-- Quill editor -->
+    <div id="editor" style="background-color: #ffffff">@Html.Raw(Model.Content)</div>
+</div>
+
+<!-- Save Version Modal -->
+<div class="modal fade" id="saveVersionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Save Version</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="SaveVersion" method="post" id="saveVersionForm">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <div class="modal-body">
+                    <label class="form-label">Version Title <span class="text-muted">(optional)</span></label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Before refactor" />
+                    <small class="text-muted">Leave blank to save without a title.</small>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-outline-primary" id="skipTitleBtn">Skip Title</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quill JS -->
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+<script>
+    const quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                ['blockquote', 'code-block'],
+                ['link'],
+                ['clean']
+            ]
+        }
+    });
+
+    const noteId = @Model.Id;
+    const titleInput = document.getElementById('noteTitle');
+    const saveStatus = document.getElementById('saveStatus');
+    let saveTimeout;
+
+    function triggerAutoSave() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+            saveStatus.textContent = 'Saving...';
+            try {
+                const response = await fetch('/Notes/AutoSave', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: noteId,
+                        title: titleInput.value || 'Untitled note',
+                        content: quill.root.innerHTML
+                    })
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error();
+
+                const date = new Date(result.updatedAt);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                saveStatus.textContent = `Saved at ${hours}:${minutes}, ${day}/${month}/${year}`;
+            } catch {
+                saveStatus.textContent = 'Save failed';
+            }
+        }, 5000);
+    }
+
+    quill.on('text-change', triggerAutoSave);
+    titleInput.addEventListener('input', triggerAutoSave);
+
+    // Skip Title button — clear the input so a blank title gets submitted
+    document.getElementById('skipTitleBtn').addEventListener('click', (e) => {
+        document.querySelector('#saveVersionForm input[name="title"]').value = '';
+    });
+</script>
