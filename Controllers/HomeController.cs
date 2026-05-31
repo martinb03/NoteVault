@@ -32,17 +32,7 @@ public class HomeController : Controller
         return View();
     }
 
-    public IActionResult Folders()
-    {
-        return View();
-    }
-
     public IActionResult Tags()
-    {
-        return View();
-    }
-
-    public IActionResult Notes()
     {
         return View();
     }
