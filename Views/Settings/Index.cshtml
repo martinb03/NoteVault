@@ -264,7 +264,7 @@
                     <td>${user.displayName}</td>
                     <td>${user.email}</td>
                     <td><span class="badge ${user.role === 'Admin' ? 'bg-primary' : 'bg-secondary'}">${user.role}</span></td>
-                    <td>${new Date(user.createdAt).toLocaleDateString('en-GB')}</td>
+                    <td>${formatLocalDate(user.createdAt)}</td>
                     <td><span class="badge ${user.isLockedOut ? 'bg-danger' : 'bg-success'}">${user.isLockedOut ? 'Disabled' : 'Active'}</span></td>
                     <td>
                         <div class="btn-group btn-group-sm">
@@ -292,6 +292,14 @@
             document.getElementById('deleteUserUserId').value = userId;
             document.getElementById('deleteUserName').textContent = displayName;
             new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
+        }
+
+        function formatLocalDate(utcString) {
+            const date = new Date(utcString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
         }
     </script>
 }

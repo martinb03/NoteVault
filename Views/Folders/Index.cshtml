@@ -28,28 +28,35 @@
     }
     else
     {
+        <div class="d-flex align-items-center py-2 px-3 text-muted small fw-bold text-uppercase" style="border: 1px solid #dee2e6;">
+            <span class="me-3" style="font-size: 1.1rem; width: 23px;"></span>
+            <span style="width: 160px;">Title</span>
+            <span style="flex: 1; padding-right: 65px;">Description</span>
+            <span style="flex: 0.5;">Notes/Piles</span>
+            <span class="text-end" style="padding-right: 35px">Created</span>
+        </div>
         <div class="card">
             <div class="list-group list-group-flush">
                 @foreach (var folder in Model)
                 {
-                    <div class="list-group-item d-flex align-items-center py-3">
+                    
                         <!-- Folder icon, name and description -->
-                        <a asp-action="Details" asp-route-id="@folder.Id" class="text-decoration-none text-dark d-flex align-items-center" style="flex: 2;">
+                        <a asp-action="Details" asp-route-id="@folder.Id" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none" style="flex: 2;">
                             <span class="me-3" style="font-size: 1.3rem;">📁</span>
-                            <strong class="text-dark me-3">@folder.Name</strong>
-                            <span class="text-muted text-truncate ms-4" style="max-width: 300px;">@(folder.Description ?? "")</span>
-                        </a>
-                        
-                        <!-- Counts -->
-                        <span class="text-muted" style="flex: 1;">
-                            @folder.NoteCount @(folder.NoteCount == 1 ? "note" : "notes") · @folder.PileCount @(folder.PileCount == 1 ? "pile" : "piles")
-                        </span>
+                            <strong class="text-dark" style="width: 160px;">@folder.Name</strong>
+                            <span class="text-muted text-truncate" style="flex: 1;">@(folder.Description ?? "")</span>
+                            
+                            <!-- Counts -->
+                            <span class="text-muted" style="width: 275px;">
+                                @folder.NoteCount @(folder.NoteCount == 1 ? "note" : "notes") · @folder.PileCount @(folder.PileCount == 1 ? "pile" : "piles")
+                            </span>
 
-                        <!-- Date -->
-                        <span class="text-muted" style="flex: 1;">
-                            @folder.CreatedAt.ToString("dd/MM/yyyy")
-                        </span>
-                    </div>
+                            <!-- Date -->
+                            <span class="text-muted ms-3" style="width: 100px; text-align: right">
+                                <partial name="_LocalDate" model="folder.CreatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })" />
+                            </span>
+                        </a>
+                    
                 }
             </div>
         </div>

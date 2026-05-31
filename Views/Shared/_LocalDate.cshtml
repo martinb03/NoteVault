@@ -1,0 +1,6 @@
+@model DateTime
+@{
+    var format = ViewData["Format"] as string ?? "datetime";
+    var displayFormat = format == "date" ? "dd/MM/yyyy" : "HH:mm - dd/MM/yyyy";
+}
+<span class="local-date" data-utc="@Model.ToString("o")" data-format="@format">@Model.ToString(displayFormat)</span>
