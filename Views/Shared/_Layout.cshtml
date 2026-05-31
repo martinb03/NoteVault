@@ -21,21 +21,21 @@
             <input type="text" class="form-control rounded-pill" placeholder="Search..." style="width: 300px; font-size: 15px" />
         </form>
         <div style="flex:1;" class="d-flex justify-content-end" >
-            <ul class="navbar-nav flex-row gap-3" style="text-shadow: 0 0 1px black; font-weight: bold">
+            <ul class="navbar-nav flex-row gap-1" style="text-shadow: 0 0 1px black; font-weight: bold">
                 <li class="nav-item">
-                    <a class="nav-link text-white" asp-area="" asp-controller="Folders" asp-action="Index">Folders</a>
+                    <a class="nav-link text-white" style="width: 90px; text-align: center" asp-area="" asp-controller="Folders" asp-action="Index">Folders</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Notes">Notes</a>
+                    <a class="nav-link text-white" style="width: 90px; text-align: center" asp-area="" asp-controller="Notes" asp-action="Index">Notes</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-white" asp-area="" asp-controller="Home" asp-action="Tags">Tags</a>
+                    <a class="nav-link text-white" style="width: 90px; text-align: center" asp-area="" asp-controller="Home" asp-action="Tags">Tags</a>
                 </li>
                 <li class="nav-item">
                     <div class="dropdown ms-3">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
+                            <a class="nav-link dropdown-toggle text-white" style="width: 90px; text-align: center" href="#" role="button" data-bs-toggle="dropdown">
                                 @User.FindFirst("DisplayName")?.Value
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
@@ -65,5 +65,20 @@
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
+
+<script>
+    document.querySelectorAll('.local-date').forEach(el => {
+        const utc = new Date(el.dataset.utc);
+        const format = el.dataset.format;
+        const day = String(utc.getDate()).padStart(2, '0');
+        const month = String(utc.getMonth() + 1).padStart(2, '0');
+        const year = utc.getFullYear();
+        const hours = String(utc.getHours()).padStart(2, '0');
+        const minutes = String(utc.getMinutes()).padStart(2, '0');
+        el.textContent = format === 'date'
+            ? `${day}/${month}/${year}`
+            : `${hours}:${minutes} - ${day}/${month}/${year}`;
+    });
+</script>
 </body>
 </html>
