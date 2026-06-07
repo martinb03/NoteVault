@@ -170,15 +170,36 @@ public class FoldersController : Controller
         var folder = await _context.Folders
             .Include(f => f.Piles)
                 .ThenInclude(p => p.PileNotes)
+                    .ThenInclude(pn => pn.Note)
             .Include(f => f.Notes)
             .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
  
         if (folder == null) return NotFound();
  
+        // Collect all note IDs that are in any pile (to exclude from loose notes)
         var pileNoteIds = folder.Piles
             .SelectMany(p => p.PileNotes)
             .Select(pn => pn.NoteId)
             .ToHashSet();
+ 
+        PileDetailViewModel MapPile(Pile p) => new()
+        {
+            Id = p.Id,
+            Name = p.Name,
+            Color = p.Color,
+            Icon = p.Icon,
+            IsPinned = p.IsPinned,
+            SortOrder = p.SortOrder,
+            Notes = p.PileNotes
+                .OrderBy(pn => pn.SortOrder)
+                .Select(pn => new PileNoteViewModel
+                {
+                    Id = pn.NoteId,
+                    Title = pn.Note.Title,
+                    SortOrder = pn.SortOrder
+                })
+                .ToList()
+        };
  
         var model = new FolderDetailsViewModel
         {
@@ -190,28 +211,12 @@ public class FoldersController : Controller
             PinnedPiles = folder.Piles
                 .Where(p => p.IsPinned)
                 .OrderBy(p => p.SortOrder)
-                .Select(p => new PileListViewModel
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Color = p.Color,
-                    Icon = p.Icon,
-                    IsPinned = p.IsPinned,
-                    NoteCount = p.PileNotes.Count
-                })
+                .Select(MapPile)
                 .ToList(),
             Piles = folder.Piles
                 .Where(p => !p.IsPinned)
                 .OrderBy(p => p.SortOrder)
-                .Select(p => new PileListViewModel
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Color = p.Color,
-                    Icon = p.Icon,
-                    IsPinned = p.IsPinned,
-                    NoteCount = p.PileNotes.Count
-                })
+                .Select(MapPile)
                 .ToList(),
             Notes = folder.Notes
                 .Where(n => !pileNoteIds.Contains(n.Id))
@@ -220,6 +225,7 @@ public class FoldersController : Controller
                 {
                     Id = n.Id,
                     Title = n.Title,
+                    Content = n.Content,
                     CreatedAt = n.CreatedAt,
                     UpdatedAt = n.UpdatedAt
                 })

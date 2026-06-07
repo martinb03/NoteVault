@@ -54,7 +54,7 @@ public class NotesController : Controller
     // ══════════════ Create Note (from modal) ═══════════
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateNoteViewModel model)
+    public async Task<IActionResult> Create(CreateNoteViewModel model, string? returnUrl)
     {
         var userId = _userManager.GetUserId(User);
  
@@ -76,6 +76,12 @@ public class NotesController : Controller
  
         _context.Notes.Add(note);
         await _context.SaveChangesAsync();
+
+        if (!string.IsNullOrEmpty(returnUrl))
+        {
+            TempData["Success"] = $"Note \"{note.Title}\" created.";
+            return Redirect(returnUrl);
+        }
  
         return RedirectToAction("Edit", new { id = note.Id });
     }
