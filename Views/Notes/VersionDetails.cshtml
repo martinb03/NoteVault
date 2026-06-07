@@ -1,3 +1,4 @@
+@using NoteVault.ViewModels
 @model NoteVault.ViewModels.VersionDetailsViewModel
 
 @{
@@ -6,8 +7,27 @@
 }
 
 <div class="container mt-4">
-    <a asp-action="Versions" asp-route-id="@Model.NoteId" class="text-decoration-none mb-3 d-inline-block">← Back to Versions</a>
-
+    @{
+        var fromNotes = Context.Request.Query["from"] == "notes";
+        var crumbs = new List<BreadcrumbItem>();
+    
+        if (!fromNotes && Model.FolderId != null)
+        {
+            crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
+            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
+        }
+        else
+        {
+            crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
+        }
+        crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
+        crumbs.Add(new("Versions", Url.Action("Versions", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
+        crumbs.Add(new(Model.Name ?? $"Version {Model.VersionNumber}"));
+        ViewData["Breadcrumb"] = crumbs;
+    }
+    <partial name="_Breadcrumb"/>
+    
+    
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show">

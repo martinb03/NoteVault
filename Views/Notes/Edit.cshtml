@@ -1,3 +1,4 @@
+@using NoteVault.ViewModels
 @model NoteVault.ViewModels.EditNoteViewModel
 
 @{
@@ -40,8 +41,26 @@
 </style>
 
 <div class="container mt-4">
-    <a asp-action="Details" asp-route-id="@Model.Id" class="text-decoration-none mb-3 d-inline-block">← Back to Note</a>
-
+    @{
+        var fromNotes = Context.Request.Query["from"] == "notes";
+        var crumbs = new List<BreadcrumbItem>();
+    
+        if (!fromNotes && Model.FolderId != null)
+        {
+            crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
+            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
+        }
+        else
+        {
+            crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
+        }
+        crumbs.Add(new(Model.Title, Url.Action("Details", "Notes", new { id = Model.Id, from = fromNotes ? "notes" : null })));
+        crumbs.Add(new("Edit"));
+        ViewData["Breadcrumb"] = crumbs;
+    }
+    <partial name="_Breadcrumb"/>
+    
+    
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show">

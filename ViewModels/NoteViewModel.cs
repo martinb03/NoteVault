@@ -58,6 +58,7 @@ public class EditNoteViewModel
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public int? FolderId { get; set; }
+    public string? FolderName { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
  
@@ -67,6 +68,8 @@ public class VersionListPageViewModel
     public int NoteId { get; set; }
     public string NoteTitle { get; set; } = string.Empty;
     public List<VersionListItemViewModel> Versions { get; set; } = new();
+    public int?  FolderId { get; set; }
+    public string? FolderName { get; set; }
 }
  
 public class VersionListItemViewModel
@@ -87,4 +90,6 @@ public class VersionDetailsViewModel
     public string? Name { get; set; }
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public int? FolderId { get; set; }
+    public string? FolderName { get; set; }
 }

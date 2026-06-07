@@ -126,6 +126,7 @@ public class NotesController : Controller
         var userId = _userManager.GetUserId(User);
  
         var note = await _context.Notes
+            .Include(n => n.Folder)
             .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
  
         if (note == null) return NotFound();
@@ -136,6 +137,7 @@ public class NotesController : Controller
             Title = note.Title,
             Content = note.Content,
             FolderId = note.FolderId,
+            FolderName = note.Folder?.Name,
             UpdatedAt = note.UpdatedAt
         };
  
@@ -252,6 +254,7 @@ public class NotesController : Controller
         var userId = _userManager.GetUserId(User);
  
         var note = await _context.Notes
+            .Include(n => n.Folder)
             .Include(n => n.Versions)
             .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
  
@@ -261,6 +264,8 @@ public class NotesController : Controller
         {
             NoteId = note.Id,
             NoteTitle = note.Title,
+            FolderId = note.FolderId,
+            FolderName = note.Folder?.Name,
             Versions = note.Versions
                 .OrderByDescending(v => v.VersionNumber)
                 .Select(v => new VersionListItemViewModel
@@ -268,7 +273,7 @@ public class NotesController : Controller
                     Id = v.Id,
                     VersionNumber = v.VersionNumber,
                     Name = v.Name,
-                    CreatedAt = v.CreatedAt
+                    CreatedAt = v.CreatedAt,
                 })
                 .ToList()
         };
@@ -284,6 +289,7 @@ public class NotesController : Controller
  
         var version = await _context.NoteVersions
             .Include(v => v.Note)
+            .ThenInclude(n => n.Folder)
             .FirstOrDefaultAsync(v => v.Id == id && v.Note.UserId == userId);
  
         if (version == null) return NotFound();
@@ -296,7 +302,9 @@ public class NotesController : Controller
             VersionNumber = version.VersionNumber,
             Name = version.Name,
             Content = version.Content,
-            CreatedAt = version.CreatedAt
+            CreatedAt = version.CreatedAt,
+            FolderId = version.Note.FolderId,
+            FolderName = version.Note.Folder?.Name
         };
  
         return View(model);

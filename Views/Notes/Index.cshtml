@@ -60,7 +60,7 @@
             <div class="list-group list-group-flush">
                 @foreach (var note in Model.Notes)
                 {
-                    <a asp-action="Details" asp-route-id="@note.Id" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
+                    <a asp-action="Details" asp-route-id="@note.Id" asp-route-from="notes" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
                         <span class="me-3" style="font-size: 1.1rem;">📝</span>
                         <strong class="text-dark" style="width: 200px;">@note.Title</strong>
                         <span class="text-muted text-truncate" style="flex: 1; padding-right: 85px">

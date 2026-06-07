@@ -71,8 +71,15 @@
 </style>
 
 <div class="container mt-4">
-    <a asp-action="Index" class="text-decoration-none mb-3 d-inline-block">← Back to Folders</a>
-
+    @{
+        ViewData["Breadcrumb"] = new List<BreadcrumbItem>
+        {
+            new("Folders", Url.Action("Index", "Folders")),
+            new(Model.Name)
+        };
+    }
+    <partial name="_Breadcrumb"/>
+    
     <!-- Folder header row -->
     <div class="row">
         <div class="col-md-9" style="padding: 20px;">

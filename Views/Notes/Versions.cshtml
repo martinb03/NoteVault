@@ -1,3 +1,4 @@
+@using NoteVault.ViewModels
 @model NoteVault.ViewModels.VersionListPageViewModel
 
 @{
@@ -6,8 +7,25 @@
 }
 
 <div class="container mt-4">
-    <a asp-action="Details" asp-route-id="@Model.NoteId" class="text-decoration-none mb-3 d-inline-block">← Back to Note</a>
-
+    @{
+        var fromNotes = Context.Request.Query["from"] == "notes";
+        var crumbs = new List<BreadcrumbItem>();
+    
+        if (!fromNotes && Model.FolderId != null)
+        {
+            crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
+            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
+        }
+        else
+        {
+            crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
+        }
+        crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
+        crumbs.Add(new("Versions"));
+        ViewData["Breadcrumb"] = crumbs;
+    }
+    <partial name="_Breadcrumb"/>
+    
     <h4 class="mb-1">Versions</h4>
     <p class="text-muted mb-4">Version history for "@Model.NoteTitle"</p>
 
@@ -32,7 +50,7 @@
             <div class="list-group list-group-flush">
                 @foreach (var version in Model.Versions)
                 {
-                    <a asp-action="VersionDetails" asp-route-id="@version.Id" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
+                    <a asp-action="VersionDetails" asp-route-id="@version.Id" asp-route-from="@Context.Request.Query["from"]" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
                         <span class="me-3" style="font-size: 1.1rem;">🕒</span>
                         <div style="flex: 3;">
                             @if (!string.IsNullOrEmpty(version.Name))
