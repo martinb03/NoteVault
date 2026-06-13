@@ -20,7 +20,7 @@ public class TagsController : Controller
         _userManager = userManager;
     }
  
-    // ══════════════ Tags List ═══════════════════════════
+    // Tags List
     [HttpGet]
     public async Task<IActionResult> Index()
     {
@@ -41,7 +41,7 @@ public class TagsController : Controller
         return View(tags);
     }
  
-    // ══════════════ Create Tag ══════════════════════════
+    // Create Tag
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateTagViewModel model)
@@ -79,7 +79,7 @@ public class TagsController : Controller
         return RedirectToAction("Index");
     }
  
-    // ══════════════ Edit Tag ════════════════════════════
+    // Edit Tag
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditTagViewModel model)
@@ -121,7 +121,7 @@ public class TagsController : Controller
         return RedirectToAction("Index");
     }
  
-    // ══════════════ Delete Tag ══════════════════════════
+    // Delete Tag
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -139,5 +139,40 @@ public class TagsController : Controller
  
         TempData["Success"] = $"Tag \"{tag.Name}\" deleted.";
         return RedirectToAction("Index");
+    }
+    
+    // Tag Details (filtered notes)
+    [HttpGet]
+    public async Task<IActionResult> Details(int id)
+    {
+        var userId = _userManager.GetUserId(User);
+ 
+        var tag = await _context.Tags
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+ 
+        if (tag == null) return NotFound();
+ 
+        var notes = await _context.Notes
+            .Where(n => n.UserId == userId && n.NoteTags.Any(nt => nt.TagId == id))
+            .OrderByDescending(n => n.UpdatedAt)
+            .Select(n => new NoteListViewModel
+            {
+                Id = n.Id,
+                Title = n.Title,
+                Content = n.Content,
+                CreatedAt = n.CreatedAt,
+                UpdatedAt = n.UpdatedAt
+            })
+            .ToListAsync();
+ 
+        var model = new TagDetailsViewModel
+        {
+            Id = tag.Id,
+            Name = tag.Name,
+            Color = tag.Color,
+            Notes = notes
+        };
+ 
+        return View(model);
     }
 }
