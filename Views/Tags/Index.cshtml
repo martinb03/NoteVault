@@ -1,0 +1,224 @@
+@using NoteVault.ViewModels
+@model List<NoteVault.ViewModels.TagListViewModel>
+
+@{
+    ViewData["Title"] = "Tags";
+    Layout = "_Layout";
+
+    var swatchColors = new[]
+    {
+        "#FF6B6B", "#FFA94D", "#FFD93D", "#6BCB77", "#4D96FF", "#9B72CF", "#FF6BB5", "#868E96",
+        "#20C997", "#F783AC", "#845EF7", "#339AF0", "#FAB005", "#74C0FC", "#8CE99A", "#FFA8A8"
+    };
+}
+
+<style>
+    .tag-row {
+        border-top: 4px solid transparent;
+        transition: background-color 0.15s;
+    }
+    .tag-row-link {
+        text-decoration: none;
+        color: inherit;
+        flex-grow: 1;
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.15s;
+    }
+    .tag-row-link:hover {
+        background-color: #f8f9fa;
+        color: inherit;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">Tags</h4>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTagModal">New Tag</button>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="text-center text-muted py-5">
+            <p class="mb-2">No tags yet.</p>
+            <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#createTagModal">Create your first tag</button>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var tag in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="card tag-row" style="border-top-color: @(tag.Color ?? "#868E96");">
+                        <div class="d-flex align-items-center">
+                            <a asp-action="Details" asp-route-id="@tag.Id" class="tag-row-link">
+                                <strong>@tag.Name</strong>
+                                <span class="text-muted ms-auto">@tag.NoteCount @(tag.NoteCount == 1 ? "note" : "notes")</span>
+                            </a>
+                            <div class="dropdown me-2">
+                                <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                    <span style="font-size: 1.2rem;">⋮</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editTagModal"
+                                                onclick="setEditTag(@tag.Id, '@tag.Name', '@(tag.Color ?? "")')">Edit</button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteTagModal"
+                                                onclick="setDeleteTag(@tag.Id, '@tag.Name', @tag.NoteCount)">Delete</button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Create Tag Modal -->
+<div class="modal fade" id="createTagModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Create" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="Name" class="form-control" required autofocus maxlength="50"/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            @foreach (var color in swatchColors)
+                            {
+                                <label class="d-flex align-items-center justify-content-center"
+                                       style="width:32px; height:32px; border-radius:50%; background:@color; cursor:pointer;">
+                                    <input type="radio" name="Color" value="@color" class="d-none"/>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Tag Modal -->
+<div class="modal fade" id="editTagModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="Edit" method="post">
+                <input type="hidden" name="Id" id="editTagId"/>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="Name" id="editTagName" class="form-control" required maxlength="50"/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            @foreach (var color in swatchColors)
+                            {
+                                <label class="d-flex align-items-center justify-content-center"
+                                       style="width:32px; height:32px; border-radius:50%; background:@color; cursor:pointer;">
+                                    <input type="radio" name="Color" value="@color" class="d-none"/>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Tag Modal -->
+<div class="modal fade" id="deleteTagModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteTagName"></strong>?</p>
+                <p class="text-muted" id="deleteTagInfo"></p>
+                <p class="text-muted">The notes themselves will not be affected.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="Delete" method="post">
+                    <input type="hidden" name="id" id="deleteTagId"/>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function setEditTag(id, name, color) {
+        document.getElementById('editTagId').value = id;
+        document.getElementById('editTagName').value = name;
+        document.querySelectorAll('#editTagModal input[name="Color"]').forEach(input => {
+            input.checked = (input.value === color);
+            input.closest('label').style.outline = (input.value === color) ? '3px solid #FF8C42' : '';
+        });
+    }
+
+    function setDeleteTag(id, name, noteCount) {
+        document.getElementById('deleteTagId').value = id;
+        document.getElementById('deleteTagName').textContent = name;
+        const info = document.getElementById('deleteTagInfo');
+        if (noteCount > 0) {
+            info.textContent = `This tag is currently applied to ${noteCount} ${noteCount === 1 ? 'note' : 'notes'} and will be removed from all of them.`;
+        } else {
+            info.textContent = '';
+        }
+    }
+
+    document.querySelectorAll('input[name="Color"]').forEach(input => {
+        input.addEventListener('change', function() {
+            this.closest('.modal').querySelectorAll('input[name="Color"]').forEach(other => {
+                other.closest('label').style.outline = (other === this) ? '3px solid #FF8C42' : '';
+            });
+        });
+    });
+</script>

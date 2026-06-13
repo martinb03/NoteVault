@@ -1,0 +1,143 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using NoteVault.Database;
+using NoteVault.Models;
+using NoteVault.ViewModels;
+ 
+namespace NoteVault.Controllers;
+ 
+[Authorize]
+public class TagsController : Controller
+{
+    private readonly AppDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
+ 
+    public TagsController(AppDbContext context, UserManager<ApplicationUser> userManager)
+    {
+        _context = context;
+        _userManager = userManager;
+    }
+ 
+    // ══════════════ Tags List ═══════════════════════════
+    [HttpGet]
+    public async Task<IActionResult> Index()
+    {
+        var userId = _userManager.GetUserId(User);
+ 
+        var tags = await _context.Tags
+            .Where(t => t.UserId == userId)
+            .OrderBy(t => t.Name)
+            .Select(t => new TagListViewModel
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Color = t.Color,
+                NoteCount = t.NoteTags.Count()
+            })
+            .ToListAsync();
+ 
+        return View(tags);
+    }
+ 
+    // ══════════════ Create Tag ══════════════════════════
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(CreateTagViewModel model)
+    {
+        var userId = _userManager.GetUserId(User);
+ 
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Tag name is required.";
+            return RedirectToAction("Index");
+        }
+ 
+        var trimmedName = model.Name.Trim();
+ 
+        var exists = await _context.Tags
+            .AnyAsync(t => t.UserId == userId && t.Name == trimmedName);
+ 
+        if (exists)
+        {
+            TempData["Error"] = $"A tag named \"{trimmedName}\" already exists.";
+            return RedirectToAction("Index");
+        }
+ 
+        var tag = new Tag
+        {
+            Name = trimmedName,
+            Color = model.Color,
+            UserId = userId!
+        };
+ 
+        _context.Tags.Add(tag);
+        await _context.SaveChangesAsync();
+ 
+        TempData["Success"] = $"Tag \"{tag.Name}\" created.";
+        return RedirectToAction("Index");
+    }
+ 
+    // ══════════════ Edit Tag ════════════════════════════
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(EditTagViewModel model)
+    {
+        var userId = _userManager.GetUserId(User);
+ 
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Tag name is required.";
+            return RedirectToAction("Index");
+        }
+ 
+        var tag = await _context.Tags
+            .FirstOrDefaultAsync(t => t.Id == model.Id && t.UserId == userId);
+ 
+        if (tag == null) return NotFound();
+ 
+        var trimmedName = model.Name.Trim();
+ 
+        // Only check uniqueness if the name is actually changing
+        if (tag.Name != trimmedName)
+        {
+            var exists = await _context.Tags
+                .AnyAsync(t => t.UserId == userId && t.Name == trimmedName && t.Id != tag.Id);
+ 
+            if (exists)
+            {
+                TempData["Error"] = $"A tag named \"{trimmedName}\" already exists.";
+                return RedirectToAction("Index");
+            }
+        }
+ 
+        tag.Name = trimmedName;
+        tag.Color = model.Color;
+ 
+        await _context.SaveChangesAsync();
+ 
+        TempData["Success"] = "Tag updated.";
+        return RedirectToAction("Index");
+    }
+ 
+    // ══════════════ Delete Tag ══════════════════════════
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var userId = _userManager.GetUserId(User);
+ 
+        var tag = await _context.Tags
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+ 
+        if (tag == null) return NotFound();
+ 
+        // Cascade delete removes all NoteTag associations automatically
+        _context.Tags.Remove(tag);
+        await _context.SaveChangesAsync();
+ 
+        TempData["Success"] = $"Tag \"{tag.Name}\" deleted.";
+        return RedirectToAction("Index");
+    }
+}
