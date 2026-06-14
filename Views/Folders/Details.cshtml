@@ -70,7 +70,7 @@
     }
 </style>
 
-<div class="container mt-4">
+<div class="container-fluid mt-4 px-5">
     @{
         ViewData["Breadcrumb"] = new List<BreadcrumbItem>
         {
@@ -80,20 +80,30 @@
     }
     <partial name="_Breadcrumb"/>
     
-    <!-- Folder header row -->
+    <h4 class="mb-4 text-center">📁 @Model.Name</h4>
+
+    <!-- Content + sidebar row -->
     <div class="row">
-        <div class="col-md-9" style="padding: 20px;">
-            <div class="mb-1">
-                <h4 class="mb-1">📁 @Model.Name</h4>
+        <!-- Left Column: description + metadata -->
+        <div class="col-md-2">
+            <div class="mb-0">
+                <small class="text-muted text-uppercase fw-bold">Description</small>
+            </div>
+            <hr/>
+            <div class="mb-5">
                 @if (!string.IsNullOrEmpty(Model.Description))
                 {
-                    <p class="text-muted mb-0" style="padding-top: 15px; padding-bottom: 23px">@Model.Description</p>
+                    <p class="text-muted mb-1" >@Model.Description</p>
                 }
                 else
                 {
-                    <p class="text-muted mb-0" style="font-size: 15px; padding-top: 15px; padding-bottom: 23px">No description.</p>
+                    <p class="text-muted mb-1" >No description.</p>
                 }
             </div>
+            <div class="mb-0">
+                <small class="text-muted text-uppercase fw-bold">Info</small>
+            </div>
+            <hr/>
             <div class="text-muted" style="font-size: 15px">
                 Created at:
                 <div class="fw-bold">
@@ -101,14 +111,12 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Content + sidebar row -->
-    <div class="row">
-        <div class="col-md-9" style="background-color: #ffffff; padding: 20px;">
+        <!-- Center column: Content -->
+        <div class="col-md-8" style="background-color: #ffffff;">
             @if (TempData["Success"] != null)
             {
-                <div class="alert alert-success alert-dismissible fade show">
+                <div class="alert alert-success alert-dismissible fade show mt-3">
                     @TempData["Success"]
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
@@ -116,7 +124,7 @@
 
             @if (manageMode)
             {
-                <div class="alert alert-info mb-3">
+                <div class="alert alert-info mb-3 mt-3">
                     <strong>Managing notes for:</strong> @activeManagePile?.Name. Check notes to include in this pile.
                 </div>
                 <form asp-controller="Piles" asp-action="ManageNotes" method="post" id="manageNotesForm">
@@ -125,13 +133,13 @@
             }
             else if (reorderMode)
             {
-                <div class="alert alert-info mb-3">
+                <div class="alert alert-info mb-3 mt-3">
                     <strong>Reordering piles.</strong> Use the arrows to move piles within their group. Click Save when done.
                 </div>
             }
             else if (activeReorderNotesPileId.HasValue)
             {
-                <div class="alert alert-info mb-3">
+                <div class="alert alert-info mb-3 mt-3">
                     <strong>Reordering notes.</strong> Use the arrows to move notes. Click Save when done.
                 </div>
             }
@@ -158,7 +166,7 @@
                                     @if (reorderMode)
                                     {
                                         <div class="ms-3 d-flex flex-column">
-                                            <button type="button" class="btn btn-sm btn-link p-0 pile-reorder-up" >▲</button>
+                                            <button type="button" class="btn btn-sm btn-link p-0 pile-reorder-up">▲</button>
                                             <button type="button" class="btn btn-sm btn-link p-0 pile-reorder-down">▼</button>
                                         </div>
                                     }
@@ -227,7 +235,15 @@
                                                             </div>
                                                         }
                                                         <span class="me-2">📝</span>
-                                                        <span>@note.Title</span>
+                                                        <span class="me-2">@note.Title</span>
+                                                        @foreach (var tag in note.Tags.Take(3))
+                                                        {
+                                                            <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">@tag.Name</span>
+                                                        }
+                                                        @if (note.Tags.Count > 3)
+                                                        {
+                                                            <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                                                        }
                                                     </div>
                                                 }
                                                 else
@@ -235,7 +251,15 @@
                                                     <a asp-controller="Notes" asp-action="Details" asp-route-id="@note.Id"
                                                        class="@rowClasses" data-note-id="@note.Id">
                                                         <span class="me-2">📝</span>
-                                                        <span>@note.Title</span>
+                                                        <span class="me-2">@note.Title</span>
+                                                        @foreach (var tag in note.Tags.Take(3))
+                                                        {
+                                                            <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">@tag.Name</span>
+                                                        }
+                                                        @if (note.Tags.Count > 3)
+                                                        {
+                                                            <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                                                        }
                                                     </a>
                                                 }
                                             }
@@ -274,7 +298,7 @@
                                     @if (reorderMode)
                                     {
                                         <div class="ms-3 d-flex flex-column">
-                                            <button type="button" class="btn btn-sm btn-link p-0 pile-reorder-up" >▲</button>
+                                            <button type="button" class="btn btn-sm btn-link p-0 pile-reorder-up">▲</button>
                                             <button type="button" class="btn btn-sm btn-link p-0 pile-reorder-down">▼</button>
                                         </div>
                                     }
@@ -343,7 +367,15 @@
                                                             </div>
                                                         }
                                                         <span class="me-2">📝</span>
-                                                        <span>@note.Title</span>
+                                                        <span class="me-2">@note.Title</span>
+                                                        @foreach (var tag in note.Tags.Take(3))
+                                                        {
+                                                            <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">@tag.Name</span>
+                                                        }
+                                                        @if (note.Tags.Count > 3)
+                                                        {
+                                                            <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                                                        }
                                                     </div>
                                                 }
                                                 else
@@ -351,7 +383,15 @@
                                                     <a asp-controller="Notes" asp-action="Details" asp-route-id="@note.Id"
                                                        class="@rowClasses" data-note-id="@note.Id">
                                                         <span class="me-2">📝</span>
-                                                        <span>@note.Title</span>
+                                                        <span class="me-2">@note.Title</span>
+                                                        @foreach (var tag in note.Tags.Take(3))
+                                                        {
+                                                            <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">@tag.Name</span>
+                                                        }
+                                                        @if (note.Tags.Count > 3)
+                                                        {
+                                                            <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                                                        }
                                                     </a>
                                                 }
                                             }
@@ -382,7 +422,15 @@
                                     <input type="checkbox" name="NoteIds" value="@note.Id" form="manageNotesForm"
                                            class="form-check-input me-3" checked="@notesInActivePile.Contains(note.Id)"/>
                                     <span class="me-3" style="font-size: 1.1rem;">📝</span>
-                                    <strong>@note.Title</strong>
+                                    <strong class="me-2">@note.Title</strong>
+                                    @foreach (var tag in note.Tags.Take(3))
+                                    {
+                                        <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">@tag.Name</span>
+                                    }
+                                    @if (note.Tags.Count > 3)
+                                    {
+                                        <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                                    }
                                     <span class="text-muted ms-auto">
                                         <partial name="_LocalDate" model="note.CreatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
                                     </span>
@@ -392,7 +440,15 @@
                             {
                                 <a asp-controller="Notes" asp-action="Details" asp-route-id="@note.Id" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
                                     <span class="me-3" style="font-size: 1.1rem;">📝</span>
-                                    <strong class="text-dark">@note.Title</strong>
+                                    <strong class="text-dark me-2">@note.Title</strong>
+                                    @foreach (var tag in note.Tags.Take(3))
+                                    {
+                                        <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">@tag.Name</span>
+                                    }
+                                    @if (note.Tags.Count > 3)
+                                    {
+                                        <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                                    }
                                     <span class="text-muted ms-auto">
                                         <partial name="_LocalDate" model="note.CreatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
                                     </span>
@@ -413,8 +469,8 @@
             }
         </div>
 
-        <!-- Sidebar -->
-        <div class="col-md-3">
+        <!-- Right column - Sidebar -->
+        <div class="col-md-2">
             <div class="card">
                 <div class="list-group list-group-flush">
                     <button class="list-group-item list-group-item-action @(anyModeActive ? "disabled" : "")"

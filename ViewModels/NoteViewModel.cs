@@ -16,6 +16,7 @@ public class NoteListViewModel
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public List<TagListViewModel> Tags { get; set; } = new();
 }
 
 // ── Notes list page ─────────────────────────────────
@@ -49,6 +50,8 @@ public class NoteDetailsViewModel
     public DateTime UpdatedAt { get; set; }
     public int VersionCount { get; set; }
     public List<FolderSelectItem> AvailableFolders { get; set; } = new();
+    public List<TagListViewModel> Tags { get; set; } = new();
+    public List<TagListViewModel> AvailableTags { get; set; } = new();
 }
  
 // ── Edit note (Quill editor page) ───────────────────

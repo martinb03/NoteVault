@@ -4,27 +4,84 @@
 @{
     ViewData["Title"] = Model.Title;
     Layout = "_Layout";
+
+    var fromNotes = Context.Request.Query["from"] == "notes";
+    var fromTags = Context.Request.Query["from"] == "tags";
+    var crumbs = new List<BreadcrumbItem>();
+
+    if (fromTags)
+    {
+        crumbs.Add(new("Tags", Url.Action("Index", "Tags")));
+    }
+    else if (!fromNotes && Model.FolderId != null)
+    {
+        crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
+        crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
+    }
+    else
+    {
+        crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
+    }
+    crumbs.Add(new(Model.Title));
+    ViewData["Breadcrumb"] = crumbs;
+
+    var swatchColors = new[]
+    {
+        "#FF6B6B", "#FFA94D", "#FFD93D", "#6BCB77", "#4D96FF", "#9B72CF", "#FF6BB5", "#868E96",
+        "#20C997", "#F783AC", "#845EF7", "#339AF0", "#FAB005", "#74C0FC", "#8CE99A", "#FFA8A8"
+    };
 }
 
-<div class="container mt-4">
-    @{
-        var fromNotes = Context.Request.Query["from"] == "notes";
-        var crumbs = new List<BreadcrumbItem>();
-    
-        if (!fromNotes && Model.FolderId != null)
-        {
-            crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
-            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
-        }
-        else
-        {
-            crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
-        }
-        crumbs.Add(new(Model.Title));
-        ViewData["Breadcrumb"] = crumbs;
+<style>
+    .tag-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        border: 1.5px solid #868E96;
+        background-color: #868E9633;
+        color: #333;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s;
     }
-    <partial name="_Breadcrumb"/>
-    
+    .tag-chip:hover {
+        color: #333;
+    }
+    .tag-chip-add {
+        background-color: transparent;
+        border: 1.5px dashed #adb5bd;
+        color: #6c757d;
+    }
+    .tag-chip-add:hover {
+        border-color: #495057;
+        color: #495057;
+        background-color: #f8f9fa;
+    }
+    .tag-chip-remove-form {
+        margin: 0;
+        display: inline-block;
+    }
+    .tag-chip-removable .tag-text { display: inline; }
+    .tag-chip-removable .tag-remove { display: none; }
+    .tag-chip-removable:hover .tag-text { display: none; }
+    .tag-chip-removable:hover .tag-remove { display: inline; }
+    .tag-chip-picker.selected {
+        outline: 3px solid #FF8C42;
+        outline-offset: 2px;
+    }
+    .meta-icon {
+        width: 1.2rem;
+        display: inline-block;
+        text-align: center;
+    }
+</style>
+
+<div class="container-fluid mt-4 px-5">
+        <partial name="_Breadcrumb"/>
+
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show">
@@ -32,24 +89,61 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
-
+    <h4 class="mb-4 text-center">📝 @Model.Title</h4>
+    
     <div class="row">
-        <!-- Main content -->
-        <div class="col-md-9">
+        <!-- Left column: metadata + tags -->
+        <div class="col-md-2">
+            
             <div class="mb-3">
-                <h4 class="mb-1">📝 @Model.Title</h4>
-                <small class="text-muted">
-                    @if (!string.IsNullOrEmpty(Model.FolderName))
-                    {
-                        <span>📁 @Model.FolderName · </span>
-                    }
-                    Updated at: 
-                    <partial name="_LocalDate" model="Model.UpdatedAt"/>
-                    · @Model.VersionCount @(Model.VersionCount == 1 ? "version" : "versions")
-                </small>
+                <small class="text-muted text-uppercase fw-bold">Info</small>
             </div>
+            <hr />
+            <div class="text-muted mb-4" style="font-size: 0.9rem;">
+                @if (!string.IsNullOrEmpty(Model.FolderName))
+                {
+                    <div class="mb-2">
+                        <span class="meta-icon">📁</span> @Model.FolderName
+                    </div>
+                }
+                <div class="mb-2">
+                    <span class="meta-icon">🕒</span> Updated
+                    <div class="ms-4">
+                        <partial name="_LocalDate" model="Model.UpdatedAt"/>
+                    </div>
+                </div>
+                <div>
+                    <span class="meta-icon">📜</span> @Model.VersionCount @(Model.VersionCount == 1 ? "version" : "versions")
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <small class="text-muted text-uppercase fw-bold">Tags</small>
+            </div>
+            
+            <hr/>
+            
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var tag in Model.Tags)
+                {
+                    <form asp-action="RemoveTag" method="post" class="tag-chip-remove-form">
+                        <input type="hidden" name="id" value="@Model.Id"/>
+                        <input type="hidden" name="tagId" value="@tag.Id"/>
+                        <button type="submit" class="tag-chip tag-chip-removable"
+                                style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">
+                            <span class="tag-text">@tag.Name</span>
+                            <span class="tag-remove">✕ Remove</span>
+                        </button>
+                    </form>
+                }
+                <button type="button" class="tag-chip tag-chip-add" data-bs-toggle="modal" data-bs-target="#addTagsModal">
+                    + Add Tag
+                </button>
+            </div>
+        </div>
 
-            <!-- Content preview -->
+        <!-- Center column: content -->
+        <div class="col-md-8">
             <div class="card">
                 <div class="card-body" style="min-height: 400px;">
                     @if (string.IsNullOrWhiteSpace(Model.Content))
@@ -63,8 +157,9 @@
                 </div>
             </div>
         </div>
-        <!-- Sidebar -->
-        <div class="col-md-3" style="padding-top: 73px">
+
+        <!-- Right column: sidebar actions -->
+        <div class="col-md-2">
             <div class="card">
                 <div class="list-group list-group-flush">
                     <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-from="@Context.Request.Query["from"]" class="list-group-item list-group-item-action">
@@ -74,7 +169,7 @@
                         📥 Export
                     </a>
                     <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#changeFolderModal">
-                        📁 Change Parent Folder
+                        📁 Choose Folder
                     </button>
                     <a asp-action="Versions" asp-route-id="@Model.Id" asp-route-from="@Context.Request.Query["from"]" class="list-group-item list-group-item-action">
                         🕒 View Versions
@@ -83,6 +178,78 @@
                         🗑️ Delete
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Tags Modal -->
+<div class="modal fade" id="addTagsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Tags</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="AddTags" method="post" id="addTagsForm">
+                <input type="hidden" name="id" value="@Model.Id"/>
+                <div class="modal-body">
+                    @if (!Model.AvailableTags.Any())
+                    {
+                        <p class="text-muted small" id="noTagsMessage">No tags available. Create your first one below.</p>
+                    }
+                    <div class="d-flex flex-wrap gap-2" id="availableTagsContainer">
+                        @foreach (var tag in Model.AvailableTags)
+                        {
+                            <div class="tag-chip tag-chip-picker" data-tag-id="@tag.Id"
+                                 style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">
+                                @tag.Name
+                            </div>
+                        }
+                        <button type="button" class="tag-chip tag-chip-add" data-bs-toggle="modal" data-bs-target="#createTagModal">
+                            + New Tag
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Tag Modal (nested) -->
+<div class="modal fade" id="createTagModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="createTagError" class="alert alert-danger d-none"></div>
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" id="createTagName" class="form-control" required maxlength="50"/>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color</label>
+                    <div class="d-flex gap-2 flex-wrap">
+                        @foreach (var color in swatchColors)
+                        {
+                            <label class="d-flex align-items-center justify-content-center create-tag-swatch"
+                                   data-color="@color"
+                                   style="width:32px; height:32px; border-radius:50%; background:@color; cursor:pointer;">
+                            </label>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="createTagBtn">Create</button>
             </div>
         </div>
     </div>
@@ -97,7 +264,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form asp-action="ChangeFolder" method="post" id="changeFolderForm">
-                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="id" value="@Model.Id"/>
                 <div class="modal-body">
                     <label class="form-label">Folder</label>
                     <select name="folderId" class="form-select" id="folderSelect">
@@ -132,7 +299,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form asp-action="Delete" method="post">
-                    <input type="hidden" name="id" value="@Model.Id" />
+                    <input type="hidden" name="id" value="@Model.Id"/>
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </div>
@@ -141,11 +308,100 @@
 </div>
 
 <script>
-    // Enable Save button only when folder selection changes
+    // ── Tag picker selection ──
+    function bindPickerChip(chip) {
+        chip.addEventListener('click', function() {
+            this.classList.toggle('selected');
+        });
+    }
+    document.querySelectorAll('.tag-chip-picker').forEach(bindPickerChip);
+
+    // ── Save selected tags ──
+    document.getElementById('addTagsForm').addEventListener('submit', function(e) {
+        // Remove old hidden inputs (in case modal was reopened)
+        this.querySelectorAll('input[name="tagIds"]').forEach(i => i.remove());
+
+        const selected = document.querySelectorAll('.tag-chip-picker.selected');
+        selected.forEach(chip => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'tagIds';
+            input.value = chip.dataset.tagId;
+            this.appendChild(input);
+        });
+    });
+
+    // ── Create tag swatch selection ──
+    let selectedCreateTagColor = null;
+    document.querySelectorAll('.create-tag-swatch').forEach(swatch => {
+        swatch.addEventListener('click', function() {
+            document.querySelectorAll('.create-tag-swatch').forEach(s => s.style.outline = '');
+            this.style.outline = '3px solid #FF8C42';
+            selectedCreateTagColor = this.dataset.color;
+        });
+    });
+
+    // ── Create new tag (AJAX) ──
+    document.getElementById('createTagBtn').addEventListener('click', async function() {
+        const nameInput = document.getElementById('createTagName');
+        const errorBox = document.getElementById('createTagError');
+        const name = nameInput.value.trim();
+
+        if (!name) {
+            errorBox.textContent = 'Tag name is required.';
+            errorBox.classList.remove('d-none');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('Name', name);
+        if (selectedCreateTagColor) formData.append('Color', selectedCreateTagColor);
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (token) formData.append('__RequestVerificationToken', token);
+
+        try {
+            const response = await fetch('/Tags/CreateAjax', { method: 'POST', body: formData });
+            const result = await response.json();
+
+            if (!result.success) {
+                errorBox.textContent = result.error;
+                errorBox.classList.remove('d-none');
+                return;
+            }
+
+            // Add the new tag chip to the picker (already selected)
+            const noTagsMsg = document.getElementById('noTagsMessage');
+            if (noTagsMsg) noTagsMsg.remove();
+
+            const container = document.getElementById('availableTagsContainer');
+            const newChip = document.createElement('div');
+            newChip.className = 'tag-chip tag-chip-picker selected';
+            newChip.dataset.tagId = result.tag.id;
+            newChip.style.borderColor = result.tag.color || '#868E96';
+            newChip.style.backgroundColor = (result.tag.color || '#868E96') + '33';
+            newChip.textContent = result.tag.name;
+            bindPickerChip(newChip);
+
+            // Insert before the "+ New Tag" button
+            const addBtn = container.querySelector('.tag-chip-add');
+            container.insertBefore(newChip, addBtn);
+
+            // Reset and close
+            nameInput.value = '';
+            selectedCreateTagColor = null;
+            document.querySelectorAll('.create-tag-swatch').forEach(s => s.style.outline = '');
+            errorBox.classList.add('d-none');
+            bootstrap.Modal.getInstance(document.getElementById('createTagModal')).hide();
+        } catch {
+            errorBox.textContent = 'Something went wrong. Try again.';
+            errorBox.classList.remove('d-none');
+        }
+    });
+
+    // ── Change folder save button ──
     const folderSelect = document.getElementById('folderSelect');
     const saveBtn = document.getElementById('saveFolderBtn');
     const initialFolderId = '@(Model.FolderId?.ToString() ?? "")';
-
     folderSelect.addEventListener('change', () => {
         saveBtn.disabled = folderSelect.value === initialFolderId;
     });

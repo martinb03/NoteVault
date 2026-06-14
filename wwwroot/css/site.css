@@ -39,6 +39,23 @@ html {
   background-color: rgba(255, 255, 255, 0.15);
 }
 
+ .note-tag-badge {
+   display: inline-block;
+   padding: 0.15rem 0.5rem;
+   border-radius: 999px;
+   border: 1px solid #868E96;
+   background-color: #868E9633;
+   color: #333;
+   font-size: 0.75rem;
+   font-weight: 500;
+   margin-left: 0.5rem;
+ }
+.note-tag-more {
+  border-color: #adb5bd;
+  background-color: #f8f9fa;
+  color: #6c757d;
+}
+
 html {
   position: relative;
   min-height: 100%;

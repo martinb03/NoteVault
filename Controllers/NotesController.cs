@@ -30,6 +30,8 @@ public class NotesController : Controller
         if (unfiledOnly) query = query.Where(n => n.FolderId == null);
  
         var notes = await query
+            .Include(n => n.NoteTags)
+                .ThenInclude(nt => nt.Tag)
             .OrderByDescending(n => n.UpdatedAt)
             .Select(n => new NoteListViewModel
             {
@@ -37,7 +39,16 @@ public class NotesController : Controller
                 Title = n.Title,
                 Content = n.Content,
                 CreatedAt = n.CreatedAt,
-                UpdatedAt = n.UpdatedAt
+                UpdatedAt = n.UpdatedAt,
+                Tags = n.NoteTags
+                    .Select(nt => new TagListViewModel
+                    {
+                        Id = nt.Tag.Id,
+                        Name = nt.Tag.Name,
+                        Color = nt.Tag.Color
+                    })
+                    .OrderBy(t=>t.Name)
+                    .ToList()
             })
             .ToListAsync();
  
@@ -95,6 +106,8 @@ public class NotesController : Controller
         var note = await _context.Notes
             .Include(n => n.Folder)
             .Include(n => n.Versions)
+            .Include(n => n.NoteTags)
+                .ThenInclude(nt => nt.Tag)
             .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
  
         if (note == null) return NotFound();
@@ -102,7 +115,20 @@ public class NotesController : Controller
         note.ViewCount++;
         note.LastAccessedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
- 
+
+        var noteTagIds = note.NoteTags.Select(nt => nt.TagId).ToHashSet();
+        
+        var allUserTags = await _context.Tags
+            .Where(t=>t.UserId == userId)
+            .OrderBy(t=>t.Name)
+            .Select(t=>new TagListViewModel
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Color = t.Color
+            })
+            .ToListAsync();
+        
         var model = new NoteDetailsViewModel
         {
             Id = note.Id,
@@ -113,7 +139,19 @@ public class NotesController : Controller
             CreatedAt = note.CreatedAt,
             UpdatedAt = note.UpdatedAt,
             VersionCount = note.Versions.Count,
-            AvailableFolders = await GetUserFolders(userId!)
+            AvailableFolders = await GetUserFolders(userId!),
+            Tags = note.NoteTags
+                .Select(nt=>new TagListViewModel
+                {
+                    Id = nt.Tag.Id,
+                    Name = nt.Tag.Name,
+                    Color = nt.Tag.Color
+                })
+                .OrderBy(t=>t.Name)
+                .ToList(),
+            AvailableTags = allUserTags
+                .Where(t=>!noteTagIds.Contains(t.Id))
+                .ToList()
         };
  
         return View(model);
@@ -190,6 +228,60 @@ public class NotesController : Controller
         return RedirectToAction("Details", new { id });
     }
  
+    // ══════════════ Add Tags to Note ════════════════════
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddTags(int id, List<int> tagIds)
+    {
+        var userId = _userManager.GetUserId(User);
+
+        var note = await _context.Notes
+            .Include(n => n.NoteTags)
+            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+
+        if (note == null) return NotFound();
+
+        // Only add tags that belong to this user and aren't already on the note
+        var validTagIds = await _context.Tags
+            .Where(t => tagIds.Contains(t.Id) && t.UserId == userId)
+            .Select(t => t.Id)
+            .ToListAsync();
+
+        var currentTagIds = note.NoteTags.Select(nt => nt.TagId).ToHashSet();
+
+        foreach (var tagId in validTagIds.Where(tid => !currentTagIds.Contains(tid)))
+        {
+            _context.NoteTags.Add(new NoteTag { NoteId = note.Id, TagId = tagId });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("Details", new { id, from = Request.Query["from"].ToString() });
+    }
+
+// ══════════════ Remove Tag from Note ════════════════
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveTag(int id, int tagId)
+    {
+        var userId = _userManager.GetUserId(User);
+
+        var note = await _context.Notes
+            .Include(n => n.NoteTags)
+            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+
+        if (note == null) return NotFound();
+
+        var noteTag = note.NoteTags.FirstOrDefault(nt => nt.TagId == tagId);
+        if (noteTag != null)
+        {
+            _context.NoteTags.Remove(noteTag);
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToAction("Details", new { id, from = Request.Query["from"].ToString() });
+    }
+    
     // ══════════════ Save Version ════════════════════════
     [HttpPost]
     [ValidateAntiForgeryToken]

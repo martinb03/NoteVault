@@ -154,6 +154,8 @@ public class TagsController : Controller
  
         var notes = await _context.Notes
             .Where(n => n.UserId == userId && n.NoteTags.Any(nt => nt.TagId == id))
+            .Include(n => n.NoteTags)
+                .ThenInclude(nt => nt.Tag)
             .OrderByDescending(n => n.UpdatedAt)
             .Select(n => new NoteListViewModel
             {
@@ -161,7 +163,17 @@ public class TagsController : Controller
                 Title = n.Title,
                 Content = n.Content,
                 CreatedAt = n.CreatedAt,
-                UpdatedAt = n.UpdatedAt
+                UpdatedAt = n.UpdatedAt,
+                Tags = n.NoteTags
+                    .Where(nt=>nt.TagId !=id)
+                    .Select(nt=> new TagListViewModel
+                    {
+                        Id = nt.Tag.Id,
+                        Name = nt.Tag.Name,
+                        Color = nt.Tag.Color
+                    })
+                    .OrderBy(t=>t.Name)
+                    .ToList()
             })
             .ToListAsync();
  
@@ -174,5 +186,44 @@ public class TagsController : Controller
         };
  
         return View(model);
+    }
+    
+    // Create Tag (AJAX)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateAjax([FromForm] CreateTagViewModel model)
+    {
+        var userId = _userManager.GetUserId(User);
+
+        if (!ModelState.IsValid)
+        {
+            return Json(new { success = false, error = "Tag name is required." });
+        }
+
+        var trimmedName = model.Name.Trim();
+
+        var exists = await _context.Tags
+            .AnyAsync(t => t.UserId == userId && t.Name == trimmedName);
+
+        if (exists)
+        {
+            return Json(new { success = false, error = $"A tag named \"{trimmedName}\" already exists." });
+        }
+
+        var tag = new Tag
+        {
+            Name = trimmedName,
+            Color = model.Color,
+            UserId = userId!
+        };
+
+        _context.Tags.Add(tag);
+        await _context.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            tag = new { id = tag.Id, name = tag.Name, color = tag.Color }
+        });
     }
 }

@@ -171,7 +171,11 @@ public class FoldersController : Controller
             .Include(f => f.Piles)
                 .ThenInclude(p => p.PileNotes)
                     .ThenInclude(pn => pn.Note)
+                        .ThenInclude(n=>n.NoteTags)
+                            .ThenInclude(nt=>nt.Tag)
             .Include(f => f.Notes)
+                .ThenInclude(n => n.NoteTags)
+                    .ThenInclude(nt => nt.Tag)
             .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
  
         if (folder == null) return NotFound();
@@ -196,7 +200,16 @@ public class FoldersController : Controller
                 {
                     Id = pn.NoteId,
                     Title = pn.Note.Title,
-                    SortOrder = pn.SortOrder
+                    SortOrder = pn.SortOrder,
+                    Tags = pn.Note.NoteTags
+                        .Select(nt => new TagListViewModel
+                        {
+                            Id = nt.Tag.Id,
+                            Name = nt.Tag.Name,
+                            Color = nt.Tag.Color
+                        })
+                        .OrderBy(t=>t.Name)
+                        .ToList()
                 })
                 .ToList()
         };
@@ -227,7 +240,16 @@ public class FoldersController : Controller
                     Title = n.Title,
                     Content = n.Content,
                     CreatedAt = n.CreatedAt,
-                    UpdatedAt = n.UpdatedAt
+                    UpdatedAt = n.UpdatedAt,
+                    Tags = n.NoteTags
+                        .Select(nt => new TagListViewModel
+                        {
+                            Id = nt.Tag.Id,
+                            Name = nt.Tag.Name,
+                            Color = nt.Tag.Color
+                        })
+                        .OrderBy(t => t.Name)
+                        .ToList()
                 })
                 .ToList()
         };

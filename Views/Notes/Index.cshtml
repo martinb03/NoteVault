@@ -5,6 +5,8 @@
     Layout = "_Layout";
 }
 
+
+
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div class="d-flex align-items-center gap-3">
@@ -42,17 +44,10 @@
     }
     else
     {
-        @*<table class="text-muted"  style="font-size: 15px; border: black">
-            <tr>
-                <th style="width: 55px"></th>
-                <th style="width: 200px; text-align: left">Title</th>
-                <th style="width: 900px; text-align: left">Description</th>
-                <th>Last Updated</th>
-            </tr>
-        </table>*@
         <div class="d-flex align-items-center py-2 px-3 text-muted small fw-bold text-uppercase" style="border: 1px solid #dee2e6;">
             <span class="me-3" style="font-size: 1.1rem; width: 23px;"></span>
-            <span style="width: 200px;">Title</span>
+            <span style="width: 210px;">Title</span>
+            <span style="padding-right: 290px">Tags</span>
             <span style="flex: 1; padding-right: 85px;">Content</span>
             <span class="text-end" style="padding-right: 35px">Updated</span>
         </div>
@@ -63,6 +58,16 @@
                     <a asp-action="Details" asp-route-id="@note.Id" asp-route-from="notes" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
                         <span class="me-3" style="font-size: 1.1rem;">📝</span>
                         <strong class="text-dark" style="width: 200px;">@note.Title</strong>
+                        <span style="width: 335px; display: inline-flex; flex-wrap: wrap; gap: 4px;">
+                            @foreach (var tag in note.Tags.Take(3))
+                            {
+                                <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33");">@tag.Name</span>
+                            }
+                            @if (note.Tags.Count > 3)
+                            {
+                                <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                            }
+                        </span>
                         <span class="text-muted text-truncate" style="flex: 1; padding-right: 85px">
                             @System.Text.RegularExpressions.Regex.Replace(@note.Content ?? "", "<.*?>", " ").Trim()
                         </span>

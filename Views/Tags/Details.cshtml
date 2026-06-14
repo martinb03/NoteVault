@@ -11,9 +11,11 @@
         new(Model.Name)
     };
 }
-
-<div class="container mt-4">
+<div class="container-fluid mt-4 px-5">
     <partial name="_Breadcrumb"/>
+</div>
+<div class="container mt-4">
+    
 
     <!-- Tag header -->
     <div class="text-center mb-4">
@@ -44,6 +46,14 @@
                        class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
                         <span class="me-3" style="font-size: 1.1rem;">📝</span>
                         <strong class="text-dark">@note.Title</strong>
+                        @foreach (var t in note.Tags.Take(3))
+                        {
+                            <span class="note-tag-badge" style="border-color: @(t.Color ?? "#868E96"); background-color: @((t.Color ?? "#868E96") + "33");">@t.Name</span>
+                        }
+                        @if (note.Tags.Count > 3)
+                        {
+                            <span class="note-tag-badge note-tag-more">+@(note.Tags.Count - 3) more</span>
+                        }
                         <span class="text-muted ms-auto">
                             <partial name="_LocalDate" model="note.UpdatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
                         </span>
