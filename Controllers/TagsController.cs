@@ -226,4 +226,16 @@ public class TagsController : Controller
             tag = new { id = tag.Id, name = tag.Name, color = tag.Color }
         });
     }
+    
+    [HttpGet]
+    public async Task<IActionResult> ListJson()
+    {
+        var userId = _userManager.GetUserId(User);
+        var tags = await _context.Tags
+            .Where(t => t.UserId == userId)
+            .OrderBy(t => t.Name)
+            .Select(t => new { id = t.Id, name = t.Name, color = t.Color })
+            .ToListAsync();
+        return Json(tags);
+    }
 }

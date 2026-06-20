@@ -1,4 +1,5 @@
 namespace NoteVault.Models;
+using NpgsqlTypes;
 
 public class Note
 {
@@ -21,4 +22,5 @@ public class Note
     public ICollection<NoteVersion> Versions { get; set; } = new List<NoteVersion>();
     public ICollection<PileNote> PileNotes { get; set; } = new List<PileNote>();
     public ICollection<NoteTag> NoteTags { get; set; } = new List<NoteTag>();
+    public NpgsqlTsVector? SearchVector { get; set; }
 }

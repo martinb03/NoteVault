@@ -6,7 +6,7 @@
     Layout = "_Layout";
 }
 
-<div class="container mt-4">
+<div class="container-fluid mt-4 px-5">
     @{
         var fromNotes = Context.Request.Query["from"] == "notes";
         var crumbs = new List<BreadcrumbItem>();
@@ -36,25 +36,42 @@
         </div>
     }
 
+    <div class="mb-3 text-center">
+        @if (!string.IsNullOrEmpty(Model.Name))
+        {
+            <h4 class="mb-1">🕒 @Model.Name</h4>
+            <p class="text-muted mb-1">@Model.Name</p>
+        }
+        else
+        {
+            <h4 class="mb-1">🕒 Version @Model.VersionNumber</h4>
+        }
+    </div>
+    
     <div class="row">
-        <!-- Main content -->
-        <div class="col-md-9">
-            <div class="mb-3">
-                @if (!string.IsNullOrEmpty(Model.Name))
-                {
-                    <h4 class="mb-1">🕒 @Model.Name</h4>
-                    <p class="text-muted mb-1">@Model.Name</p>
-                }
-                else
-                {
-                    <h4 class="mb-1">🕒 Version @Model.VersionNumber</h4>
-                }
+        <div class="col-md-2">
+            <div class="mb-0">
+                <small class="text-muted text-uppercase fw-bold">Version</small>
+            </div>
+            <hr/>
+            <div class="mb-5">
                 <small class="text-muted">
-                    From "@Model.NoteTitle" · Saved at: 
+                    From note "@Model.NoteTitle"
+                </small>
+            </div>
+            <div class="mb-0">
+                <small class="text-muted text-uppercase fw-bold">Info</small>
+            </div>
+            <hr/>
+            <div class="mb-3">
+                <small class="text-muted">
+                    Saved at:
                     <partial name="_LocalDate" model="Model.CreatedAt"/>
                 </small>
             </div>
-
+        </div>
+        <!-- Main content -->
+        <div class="col-md-8">
             <div class="card">
                 <div class="card-body" style="min-height: 400px;">
                     @if (string.IsNullOrWhiteSpace(Model.Content))
@@ -70,14 +87,14 @@
         </div>
 
         <!-- Sidebar -->
-        <div class="col-md-3" style="padding-top: 100px">
+        <div class="col-md-2">
             <div class="card">
                 <div class="list-group list-group-flush">
                     <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#editTitleModal">
                         ✏️ Edit Title
                     </button>
                     <form asp-action="RestoreVersion" method="post" class="m-0">
-                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="id" value="@Model.Id"/>
                         <button type="submit" class="list-group-item list-group-item-action w-100 text-start">
                             ↩️ Restore This Version
                         </button>

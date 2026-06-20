@@ -256,4 +256,16 @@ public class FoldersController : Controller
  
         return View(model);
     }
+    
+    [HttpGet]
+    public async Task<IActionResult> ListJson()
+    {
+        var userId = _userManager.GetUserId(User);
+        var folders = await _context.Folders
+            .Where(f => f.UserId == userId)
+            .OrderBy(f => f.Name)
+            .Select(f => new { id = f.Id, name = f.Name })
+            .ToListAsync();
+        return Json(folders);
+    }
 }

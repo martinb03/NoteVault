@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using NoteVault.Models;
 
 namespace NoteVault.Database;
@@ -59,6 +60,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasQueryFilter(n => n.DeletedAt == null);
+            
+            entity.Property(n => n.SearchVector)
+                .HasColumnType("tsvector")
+                .HasComputedColumnSql(
+                    "to_tsvector('english', coalesce(\"Title\", '') || ' ' || coalesce(regexp_replace(\"Content\", '<[^>]*>', ' ', 'g'), ''))",
+                    stored: true);
+            
+            entity.HasIndex(n => n.SearchVector)
+                .HasMethod("GIN");
         });
         
         //-------NoteVersion-------
