@@ -1,0 +1,248 @@
+@using NoteVault.ViewModels
+@model NoteVault.ViewModels.SearchResultsViewModel
+
+@{
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.Query) ? "Search" : $"Results for «{Model.Query}»";
+    Layout = "_Layout";
+}
+
+<style>
+    .filter-tag-chip {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1.5px solid;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        color: #333;
+        transition: opacity 0.15s;
+    }
+    .filter-tag-chip:hover { opacity: 0.8; }
+    .filter-tag-chip.selected {
+        outline: 3px solid #FF8C42;
+        outline-offset: 2px;
+    }
+    .sidebar-section { margin-bottom: 1.5rem; }
+    .sidebar-section h6 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+</style>
+
+<div class="container mt-4">
+    @if (string.IsNullOrWhiteSpace(Model.Query) && !Model.TagIds.Any() && Model.FolderId == null)
+    {
+        <h4 class="mb-4">Search</h4>
+        <p class="text-muted">Type a query in the search bar above to find notes.</p>
+    }
+    else
+    {
+        <h4 class="mb-4">
+            @if (string.IsNullOrWhiteSpace(Model.Query))
+            {
+                <span>Filtered notes</span>
+            }
+            else
+            {
+                <span>Results for «@Model.Query»</span>
+            }
+        </h4>
+
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3">
+                <div class="card p-3" style="position: sticky; top: 80px;">
+                    <!-- Tags -->
+                    <div class="sidebar-section">
+                        <h6>Tags</h6>
+                        <div class="d-flex flex-wrap gap-2" id="tagFilterContainer">
+                            @{
+                                var visibleTags = Model.AvailableTags.Take(4).ToList();
+                                var hiddenTags = Model.AvailableTags.Skip(4).ToList();
+                            }
+                            @foreach (var t in visibleTags)
+                            {
+                                var selected = Model.TagIds.Contains(t.Id) ? "selected" : "";
+                                <div class="filter-tag-chip @selected" data-tag-id="@t.Id"
+                                     style="border-color: @(t.Color ?? "#868E96"); background-color: @((t.Color ?? "#868E96") + "33");">
+                                    @t.Name
+                                </div>
+                            }
+                            <div id="hiddenTagsGroup" style="display: none; gap: 8px; flex-wrap: wrap;">
+                                @foreach (var t in hiddenTags)
+                                {
+                                    var selected = Model.TagIds.Contains(t.Id) ? "selected" : "";
+                                    <div class="filter-tag-chip @selected" data-tag-id="@t.Id"
+                                         style="border-color: @(t.Color ?? "#868E96"); background-color: @((t.Color ?? "#868E96") + "33");">
+                                        @t.Name
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        @if (hiddenTags.Any())
+                        {
+                            <button type="button" id="showMoreTagsBtn" class="btn btn-link btn-sm p-0 mt-2">Show all (@Model.AvailableTags.Count)</button>
+                        }
+                    </div>
+
+                    <!-- Folder -->
+                    <div class="sidebar-section">
+                        <h6>Folder</h6>
+                        <select id="folderFilter" class="form-select form-select-sm">
+                            <option value="">Any folder</option>
+                            @foreach (var f in Model.AvailableFolders)
+                            {
+                                <option value="@f.Id" selected="@(f.Id == Model.FolderId)">@f.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="sidebar-section">
+                        <h6>Date</h6>
+                        <select id="dateTypeFilter" class="form-select form-select-sm mb-2">
+                            <option value="updated" selected="@(Model.DateType == "updated")">Last updated</option>
+                            <option value="created" selected="@(Model.DateType == "created")">Created</option>
+                        </select>
+                        <input type="date" id="dateFromFilter" class="form-control form-control-sm mb-2"
+                               value="@(Model.DateFrom?.ToString("yyyy-MM-dd"))" placeholder="From"/>
+                        <input type="date" id="dateToFilter" class="form-control form-control-sm"
+                               value="@(Model.DateTo?.ToString("yyyy-MM-dd"))" placeholder="To"/>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="col-md-9">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted small" id="resultsCount">@Model.Results.Count @(Model.Results.Count == 1 ? "result" : "results")</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="sortFilter" class="text-muted small mb-0">Sort:</label>
+                        <select id="sortFilter" class="form-select form-select-sm" style="width: auto;">
+                            <option value="relevance" selected="@(Model.Sort == "relevance")">Relevance</option>
+                            <option value="updated" selected="@(Model.Sort == "updated")">Last updated</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="resultsContainer">
+                    <partial name="_ResultsList" model="Model.Results"/>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+(function() {
+    const initialQuery = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Query));
+
+    let activeFilters = {
+        q: initialQuery,
+        tagIds: new Set([@string.Join(",", Model.TagIds)]),
+        folderId: @(Model.FolderId?.ToString() ?? "null"),
+        dateFrom: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DateFrom?.ToString("yyyy-MM-dd") ?? "")),
+        dateTo: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DateTo?.ToString("yyyy-MM-dd") ?? "")),
+        dateType: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DateType)),
+        sort: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Sort))
+    };
+
+    let debounceTimer = null;
+
+    function buildParams() {
+        const params = new URLSearchParams();
+        if (activeFilters.q) params.set('q', activeFilters.q);
+        activeFilters.tagIds.forEach(id => params.append('tagIds', id));
+        if (activeFilters.folderId !== null && activeFilters.folderId !== '') params.set('folderId', activeFilters.folderId);
+        if (activeFilters.dateFrom) params.set('dateFrom', activeFilters.dateFrom);
+        if (activeFilters.dateTo) params.set('dateTo', activeFilters.dateTo);
+        if (activeFilters.dateType !== 'updated') params.set('dateType', activeFilters.dateType);
+        if (activeFilters.sort !== 'relevance') params.set('sort', activeFilters.sort);
+        return params;
+    }
+
+    async function refreshResults() {
+        const params = buildParams();
+        // Update URL without reload
+        const newUrl = `/Search/Results?${params.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+
+        const container = document.getElementById('resultsContainer');
+        try {
+            const res = await fetch(`/Search/ResultsPartial?${params.toString()}`);
+            if (!res.ok) return;
+            const html = await res.text();
+            container.innerHTML = html;
+
+            // Update count
+            const items = container.querySelectorAll('.list-group-item').length;
+            document.getElementById('resultsCount').textContent = items + (items === 1 ? ' result' : ' results');
+        } catch (e) {
+            console.error('Failed to refresh results', e);
+        }
+    }
+
+    function debouncedRefresh() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(refreshResults, 300);
+    }
+
+    // Tag chips
+    document.querySelectorAll('.filter-tag-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+            const id = parseInt(this.dataset.tagId);
+            if (activeFilters.tagIds.has(id)) {
+                activeFilters.tagIds.delete(id);
+                this.classList.remove('selected');
+            } else {
+                activeFilters.tagIds.add(id);
+                this.classList.add('selected');
+            }
+            refreshResults();
+        });
+    });
+
+    // Show all tags
+    const showMoreBtn = document.getElementById('showMoreTagsBtn');
+    if (showMoreBtn) {
+        showMoreBtn.addEventListener('click', function() {
+            const group = document.getElementById('hiddenTagsGroup');
+            const visible = group.style.display !== 'none';
+            group.style.display = visible ? 'none' : 'inline-flex';
+            this.textContent = visible ? 'Show all (' + (@Model.AvailableTags.Count) + ')' : 'Show less';
+        });
+    }
+
+    // Folder
+    document.getElementById('folderFilter').addEventListener('change', function() {
+        activeFilters.folderId = this.value || null;
+        refreshResults();
+    });
+
+    // Date type
+    document.getElementById('dateTypeFilter').addEventListener('change', function() {
+        activeFilters.dateType = this.value;
+        refreshResults();
+    });
+
+    // Date range (debounced)
+    document.getElementById('dateFromFilter').addEventListener('change', function() {
+        activeFilters.dateFrom = this.value;
+        debouncedRefresh();
+    });
+    document.getElementById('dateToFilter').addEventListener('change', function() {
+        activeFilters.dateTo = this.value;
+        debouncedRefresh();
+    });
+
+    // Sort
+    document.getElementById('sortFilter').addEventListener('change', function() {
+        activeFilters.sort = this.value;
+        refreshResults();
+    });
+})();
+</script>

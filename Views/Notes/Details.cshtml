@@ -4,12 +4,18 @@
 @{
     ViewData["Title"] = Model.Title;
     Layout = "_Layout";
-
+   
     var fromNotes = Context.Request.Query["from"] == "notes";
     var fromTags = Context.Request.Query["from"] == "tags";
+    var fromSearch = Context.Request.Query["from"] == "search";
+    var returnUrl = Context.Request.Query["returnUrl"].ToString();
     var crumbs = new List<BreadcrumbItem>();
 
-    if (fromTags)
+    if (fromSearch)
+    {
+        crumbs.Add(new("Search", string.IsNullOrEmpty(returnUrl) ? Url.Action("Results", "Search") : returnUrl));
+    }
+    else if (fromTags)
     {
         crumbs.Add(new("Tags", Url.Action("Index", "Tags")));
     }
@@ -24,6 +30,7 @@
     }
     crumbs.Add(new(Model.Title));
     ViewData["Breadcrumb"] = crumbs;
+    
 
     var swatchColors = new[]
     {

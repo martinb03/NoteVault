@@ -330,25 +330,31 @@
             console.error('Search failed', e);
         }
     }
- 
+
     function renderDropdown(results) {
+        const q = searchInput.value.trim();
+        const seeAllParams = new URLSearchParams();
+        if (q) seeAllParams.set('q', q);
+        activeTagIds.forEach(id => seeAllParams.append('tagIds', id));
+        if (activeFolderId !== null) seeAllParams.set('folderId', activeFolderId);
+        const seeAllUrl = `/Search/Results?${seeAllParams.toString()}`;
+
         if (results.length === 0) {
-            searchDropdown.innerHTML = '<div class="p-3 text-muted text-center">No results</div>';
+            searchDropdown.innerHTML = `
+            <div class="p-3 text-muted text-center">No results</div>
+            <a href="${seeAllUrl}" class="d-block text-center py-2 small text-decoration-none" style="border-top: 1px solid #eee;">See all results →</a>
+        `;
             searchDropdown.classList.remove('d-none');
             return;
         }
-        
-        function stripBold(s){
-            return s.replace(/<\/?b>/g, '');
-        }
- 
+
         searchDropdown.innerHTML = results.map(r => `
-            <a href="/Notes/Details/${r.id}" class="search-result-item">
-                ${r.folderName ? `<span class="search-result-folder">📁 ${escapeHtml(r.folderName)}</span>` : ''}
-                <div class="search-result-title">${stripBold(r.titleHighlight)}</div>
-                <div class="search-result-snippet">${stripBold(r.snippet)}</div>
-            </a>
-        `).join('');
+        <a href="/Notes/Details/${r.id}?from=search" class="search-result-item">
+            ${r.folderName ? `<span class="search-result-folder">📁 ${escapeHtml(r.folderName)}</span>` : ''}
+            <div class="search-result-title">${stripBold(r.titleHighlight)}</div>
+            <div class="search-result-snippet">${stripBold(r.snippet)}</div>
+        </a>
+    `).join('') + `<a href="${seeAllUrl}" class="d-block text-center py-2 small text-decoration-none" style="border-top: 1px solid #eee;">See all results →</a>`;
         searchDropdown.classList.remove('d-none');
     }
  
@@ -371,7 +377,11 @@
             searchDropdown.classList.remove('d-none');
         }
     });
- 
+
+    function stripBold(s) {
+        return String(s).replace(/<\/?b>/g, '');
+    }
+    
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
