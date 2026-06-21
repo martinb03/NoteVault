@@ -20,7 +20,7 @@ public class PilesController : Controller
         _userManager = userManager;
     }
  
-    // ══════════════ Create Pile ═════════════════════════
+    // ========= Create Pile =========
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreatePileViewModel model)
@@ -61,7 +61,7 @@ public class PilesController : Controller
         return RedirectToAction("Details", "Folders", new { id = model.FolderId });
     }
  
-    // ══════════════ Edit Pile ═══════════════════════════
+    // ========= Edit Pile =========
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditPileViewModel model)
@@ -91,7 +91,7 @@ public class PilesController : Controller
         return RedirectToAction("Details", "Folders", new { id = pile.FolderId });
     }
  
-    // ══════════════ Toggle Pin ══════════════════════════
+    // ========= Toggle Pin =========
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TogglePin(int id)
@@ -112,7 +112,7 @@ public class PilesController : Controller
         return RedirectToAction("Details", "Folders", new { id = pile.FolderId });
     }
  
-    // ══════════════ Manage Notes ════════════════════════
+    // ========= Manage Notes =========
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ManageNotes(ManageNotesRequest request)
@@ -173,7 +173,7 @@ public class PilesController : Controller
         return RedirectToAction("Details", "Folders", new { id = pile.FolderId });
     }
  
-    // ══════════════ Reorder Pile (up/down) ══════════════
+    // ========= Reorder Pile (up/down) =========
     public class SavePileOrderRequest
     {
         public int FolderId { get; set; }
@@ -202,7 +202,7 @@ public class PilesController : Controller
         return Json(new { success = true });
     }
  
-    // ══════════════ Reorder Note in Pile ════════════════
+    // ========= Reorder Note in Pile =========
     public class SaveNoteOrderRequest
     {
         public int PileId { get; set; }
@@ -231,7 +231,7 @@ public class PilesController : Controller
         return Json(new { success = true });
     }
  
-    // ══════════════ Soft Delete Pile ════════════════════
+    // ========= Soft Delete Pile =========
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -246,9 +246,6 @@ public class PilesController : Controller
         if (pile == null) return NotFound();
  
         var folderId = pile.FolderId;
- 
-        // Remove all note associations (notes themselves stay in the folder)
-        _context.PileNotes.RemoveRange(pile.PileNotes);
  
         // Soft delete the pile
         pile.DeletedAt = DateTime.UtcNow;

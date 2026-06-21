@@ -1,0 +1,396 @@
+@using NoteVault.ViewModels
+@model NoteVault.ViewModels.TrashViewModel
+
+@{
+    ViewData["Title"] = "Trash";
+    Layout = "_Layout";
+}
+
+<style>
+    .trash-row {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #dee2e6;
+        gap: 0.75rem;
+    }
+    .trash-row:last-child { border-bottom: none; }
+    .trash-row.greyed {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    .folder-contents {
+        background: #f8f9fa;
+        padding: 0.5rem 1rem 0.5rem 2.5rem;
+        border-top: 1px solid #dee2e6;
+    }
+    .folder-content-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+    }
+    .greyed-note {
+        font-size: 0.75rem;
+        color: #dc3545;
+        margin-left: 0.5rem;
+    }
+    .folder-chevron {
+        display: inline-block;
+        transition: transform 0.15s;
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    button[aria-expanded="true"] .folder-chevron {
+        transform: rotate(90deg);
+    }
+    button.collapsed .folder-chevron {
+        transform: rotate(0deg);
+    }
+</style>
+
+<div class="container mt-4">
+    <h4 class="mb-3">🗑️ Trash</h4>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Tab nav -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "folders" ? "active" : "")" asp-action="Index" asp-route-tab="folders">
+                Folders (@Model.Folders.Count)
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "piles" ? "active" : "")" asp-action="Index" asp-route-tab="piles">
+                Piles (@Model.Piles.Count)
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "notes" ? "active" : "")" asp-action="Index" asp-route-tab="notes">
+                Notes (@Model.Notes.Count)
+            </a>
+        </li>
+    </ul>
+
+    <!-- Action bar -->
+    <div class="d-flex align-items-center gap-3 mb-3 p-3 bg-light rounded">
+        <input type="checkbox" id="selectAll" class="form-check-input"/>
+        <label for="selectAll" class="mb-0 small text-muted">Select all</label>
+        <div class="ms-auto d-flex gap-2">
+            <button type="button" id="restoreBtn" class="btn btn-sm btn-success" disabled>
+                ↩ Restore
+            </button>
+            <button type="button" id="deleteBtn" class="btn btn-sm btn-danger" disabled
+                    data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                🗑️ Delete permanently
+            </button>
+        </div>
+    </div>
+
+    <!-- Forms used for submission (populated by JS before submit) -->
+    <form id="restoreForm" asp-action="Restore" method="post">
+        <input type="hidden" name="tab" value="@Model.Tab"/>
+    </form>
+    <form id="deleteForm" asp-action="DeletePermanent" method="post">
+        <input type="hidden" name="tab" value="@Model.Tab"/>
+    </form>
+
+    <!-- Tab content -->
+    <div class="card">
+        @if (Model.Tab == "folders")
+        {
+            @if (Model.Folders.Count == 0)
+            {
+                <div class="text-center text-muted py-5">
+                    <p>No folders in trash.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var f in Model.Folders)
+                {
+                    var hasContents = f.Piles.Any() || f.Notes.Any();
+
+                    <div class="folder-block">
+                        <div class="trash-row p-0">
+                            <div class="ps-3 pe-2 py-3">
+                                <input type="checkbox" class="form-check-input item-cb folder-cb"
+                                       data-id="@f.Id" data-type="folder" data-folder-id="@f.Id"/>
+                            </div>
+                            @if (hasContents)
+                            {
+                                <button type="button"
+                                        class="btn btn-link text-decoration-none text-dark flex-grow-1 p-3 d-flex align-items-center gap-2 collapsed"
+                                        data-bs-toggle="collapse" data-bs-target="#folder-@f.Id"
+                                        style="text-align: left;">
+                                    <span class="folder-chevron">▶</span>
+                                    <span style="font-size: 1.1rem;">📁</span>
+                                    <strong>@f.Name</strong>
+                                    <span class="text-muted small ms-2">
+                                        @f.Piles.Count piles · @f.Notes.Count notes
+                                    </span>
+                                    <span class="text-muted small ms-auto">
+                                        <partial name="_LocalDate" model="f.DeletedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                                    </span>
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="flex-grow-1 p-3 d-flex align-items-center gap-2">
+                                    <span style="visibility: hidden;">▶</span>
+                                    <span style="font-size: 1.1rem;">📁</span>
+                                    <strong>@f.Name</strong>
+                                    <span class="text-muted small ms-2">empty</span>
+                                    <span class="text-muted small ms-auto">
+                                        <partial name="_LocalDate" model="f.DeletedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                                    </span>
+                                </div>
+                            }
+                        </div>
+
+                        @if (hasContents)
+                        {
+                            <div class="collapse" id="folder-@f.Id">
+                                <div class="folder-contents">
+                                    @foreach (var p in f.Piles)
+                                    {
+                                        <div class="folder-content-row">
+                                            <input type="checkbox" class="form-check-input item-cb child-cb"
+                                                   data-id="@p.Id" data-type="pile" data-folder-id="@f.Id"/>
+                                            <span style="font-size: 1rem;">@(string.IsNullOrEmpty(p.Icon) ? "📦" : p.Icon)</span>
+                                            <span>@p.Name</span>
+                                        </div>
+                                    }
+                                    @foreach (var n in f.Notes)
+                                    {
+                                        <div class="folder-content-row">
+                                            <input type="checkbox" class="form-check-input item-cb child-cb"
+                                                   data-id="@n.Id" data-type="note" data-folder-id="@f.Id"/>
+                                            <span>📝</span>
+                                            <span>@n.Title</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        }
+        else if (Model.Tab == "piles")
+        {
+            @if (Model.Piles.Count == 0)
+            {
+                <div class="text-center text-muted py-5">
+                    <p>No piles in trash.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var p in Model.Piles)
+                {
+                    <div class="trash-row @(p.ParentFolderDeleted ? "greyed" : "")"
+                         style="@(p.Color != null ? $"border-left: 4px solid {p.Color};" : "")">
+                        <input type="checkbox" class="form-check-input item-cb"
+                               data-id="@p.Id" data-type="pile"
+                               @(p.ParentFolderDeleted ? "disabled" : "")/>
+                        <span style="font-size: 1.1rem;">@(string.IsNullOrEmpty(p.Icon) ? "📦" : p.Icon)</span>
+                        <strong>@p.Name</strong>
+                        @if (p.FolderName != null)
+                        {
+                            <span class="text-muted small ms-2">📁 @p.FolderName</span>
+                        }
+                        @if (p.ParentFolderDeleted)
+                        {
+                            <span class="greyed-note">parent folder is also in trash</span>
+                        }
+                        <span class="text-muted small ms-auto">
+                            <partial name="_LocalDate" model="p.DeletedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                        </span>
+                    </div>
+                }
+            }
+        }
+        else if (Model.Tab == "notes")
+        {
+            @if (Model.Notes.Count == 0)
+            {
+                <div class="text-center text-muted py-5">
+                    <p>No notes in trash.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var n in Model.Notes)
+                {
+                    <div class="trash-row">
+                        <input type="checkbox" class="form-check-input item-cb"
+                               data-id="@n.Id" data-type="note"/>
+                        <span>📝</span>
+                        <strong>@n.Title</strong>
+                        @if (n.FolderName != null)
+                        {
+                            <span class="text-muted small ms-2">📁 @n.FolderName</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted small ms-2">Unfiled</span>
+                        }
+                        <span class="text-muted small ms-auto">
+                            <partial name="_LocalDate" model="n.DeletedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                        </span>
+                    </div>
+                }
+            }
+        }
+    </div>
+</div>
+
+<!-- Confirm Permanent Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Permanently Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Permanently delete <strong id="deleteCount">0</strong> selected item(s)?</p>
+                <p class="text-muted">This cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Partial Restore Warning Modal -->
+<div class="modal fade" id="partialRestoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Partial Restore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Restoring a folder without all of its contents will leave the unselected items unrelated to that folder. They will move to the Notes/Piles tabs as standalone items.</p>
+                <p>Are you sure you want to restore partially?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirmPartialRestoreBtn" class="btn btn-primary">Restore partially</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const selectAll = document.getElementById('selectAll');
+    const restoreBtn = document.getElementById('restoreBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const itemCheckboxes = document.querySelectorAll('.item-cb');
+
+    function getCheckedItems() {
+        return Array.from(document.querySelectorAll('.item-cb:checked'));
+    }
+
+    function updateButtons() {
+        const count = getCheckedItems().length;
+        restoreBtn.disabled = count === 0;
+        deleteBtn.disabled = count === 0;
+        document.getElementById('deleteCount').textContent = count;
+    }
+
+    // Select all
+    selectAll.addEventListener('change', function() {
+        itemCheckboxes.forEach(cb => {
+            if (!cb.disabled) cb.checked = this.checked;
+        });
+        updateButtons();
+    });
+
+    // Individual checkboxes — handle folder/child interactions
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const type = this.dataset.type;
+            const folderId = this.dataset.folderId;
+
+            if (type === 'folder' && this.checked) {
+                // Auto-check all children of this folder
+                document.querySelectorAll(`.child-cb[data-folder-id="${folderId}"]`).forEach(child => {
+                    child.checked = true;
+                });
+            } else if (type === 'folder' && !this.checked) {
+                // Uncheck all children
+                document.querySelectorAll(`.child-cb[data-folder-id="${folderId}"]`).forEach(child => {
+                    child.checked = false;
+                });
+            } else if (this.classList.contains('child-cb') && this.dataset.type === 'pile' && this.checked) {
+                // Pile inside a deleted folder requires the folder to be restored too
+                const folderCb = document.querySelector(`.folder-cb[data-folder-id="${folderId}"]`);
+                if (folderCb) folderCb.checked = true;
+            }
+
+            updateButtons();
+        });
+    });
+
+    function populateAndSubmit(formId) {
+        const form = document.getElementById(formId);
+
+        // Clear previous hidden inputs
+        form.querySelectorAll('input[name="folderIds"], input[name="pileIds"], input[name="noteIds"]').forEach(i => i.remove());
+
+        getCheckedItems().forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = cb.dataset.type + 'Ids';
+            input.value = cb.dataset.id;
+            form.appendChild(input);
+        });
+
+        form.submit();
+    }
+
+    // Restore — check for partial folder restore first
+    restoreBtn.addEventListener('click', function() {
+        const checked = getCheckedItems();
+        const checkedFolderIds = new Set(checked.filter(c => c.dataset.type === 'folder').map(c => c.dataset.id));
+
+        let hasPartialRestore = false;
+        for (const fid of checkedFolderIds) {
+            const children = document.querySelectorAll(`.child-cb[data-folder-id="${fid}"]`);
+            const uncheckedChildren = Array.from(children).filter(c => !c.checked);
+            if (uncheckedChildren.length > 0) {
+                hasPartialRestore = true;
+                break;
+            }
+        }
+
+        if (hasPartialRestore) {
+            const modal = new bootstrap.Modal(document.getElementById('partialRestoreModal'));
+            modal.show();
+        } else {
+            populateAndSubmit('restoreForm');
+        }
+    });
+
+    document.getElementById('confirmPartialRestoreBtn').addEventListener('click', function() {
+        populateAndSubmit('restoreForm');
+    });
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        populateAndSubmit('deleteForm');
+    });
+})();
+</script>
