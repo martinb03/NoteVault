@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using NoteVault.Database;
 using NoteVault.Models;
 using NoteVault.ViewModels;
 
@@ -12,15 +14,18 @@ public class SettingsController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly AppDbContext _context;
 
     public SettingsController(
         UserManager<ApplicationUser> userManager, 
         SignInManager<ApplicationUser> signInManager,
-        RoleManager<IdentityRole> roleManager)
+        RoleManager<IdentityRole> roleManager,
+        AppDbContext context)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _roleManager = roleManager;
+        _context = context;
     }
     
     // ── Main settings page ──────────────────────────────
@@ -28,8 +33,12 @@ public class SettingsController : Controller
     public async Task<IActionResult> Index()
     {
         var user = await _userManager.GetUserAsync(User);
+        var settings = await _context.AppSettings.FirstOrDefaultAsync(s => s.Id == 1);
+        ViewData["IsRegistrationOpen"] = settings?.IsRegistrationOpen ?? false;
         if (user == null) return RedirectToAction("Login", "Account");
- 
+
+        
+        
         var model = new AccountSettingsViewModel
         {
             DisplayName = user.DisplayName,
@@ -276,5 +285,21 @@ public class SettingsController : Controller
         }
  
         return RedirectToAction("Index");
+    }
+    
+    // ------- Admin: Allow open registration -------
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> SetRegistrationOpen([FromForm] bool isOpen)
+    {
+        var settings = await _context.AppSettings.FirstOrDefaultAsync(s => s.Id == 1);
+        if (settings == null)
+        {
+            return Json(new { success = false });
+        }
+        settings.IsRegistrationOpen = isOpen;
+        await _context.SaveChangesAsync();
+        return Json(new { success = true });
     }
 }

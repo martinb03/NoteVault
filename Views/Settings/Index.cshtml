@@ -132,10 +132,12 @@
                         <div class="card mb-3">
                             <div class="card-body">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="openRegistration">
+                                    <input class="form-check-input" type="checkbox" id="openRegistration"
+                                           @(((bool)ViewData["IsRegistrationOpen"]!) ? "checked" : "")>
                                     <label class="form-check-label" for="openRegistration">Allow open registration</label>
                                 </div>
                                 <small class="text-muted">When enabled, anyone with access to this app can create an account.</small>
+                                <div id="openRegistrationStatus" class="small mt-1"></div>
                             </div>
                         </div>
 
@@ -302,4 +304,34 @@
             return `${day}/${month}/${year}`;
         }
     </script>
+    //------ Open Registration: on-click apply --------
+    <script>
+    const openRegToggle = document.getElementById('openRegistration');
+    const openRegStatus = document.getElementById('openRegistrationStatus');
+
+    openRegToggle.addEventListener('change', async function() {
+        const formData = new FormData();
+        formData.append('isOpen', this.checked);
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (token) formData.append('__RequestVerificationToken', token);
+
+        try {
+            const res = await fetch('/Settings/SetRegistrationOpen', { method: 'POST', body: formData });
+            const result = await res.json();
+            if (result.success) {
+                openRegStatus.textContent = 'Saved';
+                openRegStatus.className = 'small mt-1 text-success';
+                setTimeout(() => { openRegStatus.textContent = ''; }, 1500);
+            } else {
+                openRegStatus.textContent = 'Save failed';
+                openRegStatus.className = 'small mt-1 text-danger';
+                this.checked = !this.checked; // revert
+            }
+        } catch {
+            openRegStatus.textContent = 'Save failed';
+            openRegStatus.className = 'small mt-1 text-danger';
+            this.checked = !this.checked;
+        }
+    });
+</script>
 }

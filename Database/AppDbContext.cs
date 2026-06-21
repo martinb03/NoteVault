@@ -15,10 +15,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PileNote> PileNotes => Set<PileNote>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<NoteTag> NoteTags => Set<NoteTag>();
+    public DbSet<AppSettings> AppSettings { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        
+        //-------Open Registration-------
+        modelBuilder.Entity<AppSettings>().HasData(new AppSettings
+        {
+            Id = 1,
+            IsRegistrationOpen = false
+        });
+        
         //-------Folder-------
         modelBuilder.Entity<Folder>(entity =>
         {
