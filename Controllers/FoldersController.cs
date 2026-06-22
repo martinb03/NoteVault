@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NoteVault.Database;
 using NoteVault.Models;
+using NoteVault.Services;
 using NoteVault.ViewModels;
 
 namespace NoteVault.Controllers;
@@ -13,11 +14,18 @@ public class FoldersController : Controller
 {
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RazorViewRenderer _viewRenderer;
+    private readonly PdfService _pdfService;
     
-    public FoldersController(AppDbContext context, UserManager<ApplicationUser> userManager)
+    public FoldersController(AppDbContext context, 
+        UserManager<ApplicationUser> userManager,
+        RazorViewRenderer viewRenderer,
+        PdfService pdfService)
     {
         _context = context;
         _userManager = userManager;
+        _viewRenderer = viewRenderer;
+        _pdfService = pdfService;
     }
     
     [HttpGet]
@@ -267,5 +275,62 @@ public class FoldersController : Controller
             .Select(f => new { id = f.Id, name = f.Name })
             .ToListAsync();
         return Json(folders);
+    }
+    
+    [HttpGet]
+    public async Task<IActionResult> Export(int id)
+    {
+        var userId = _userManager.GetUserId(User);
+
+        var folder = await _context.Folders
+            .Include(f => f.Notes)
+            .Include(f => f.Piles)
+                .ThenInclude(p => p.PileNotes.OrderBy(pn => pn.SortOrder))
+                    .ThenInclude(pn => pn.Note)
+            .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+
+        if (folder == null) return NotFound();
+
+        using var memoryStream = new MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
+        {
+            // Loose notes (not in any pile) — root level
+            var pileNoteIds = folder.Piles.SelectMany(p => p.PileNotes).Select(pn => pn.NoteId).ToHashSet();
+            var looseNotes = folder.Notes.Where(n => !pileNoteIds.Contains(n.Id)).ToList();
+
+            foreach (var note in looseNotes)
+            {
+                var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_NoteExport.cshtml",
+                    new NoteExportModel { Title = note.Title, Content = note.Content });
+                var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
+                var entryName = $"{FileNameSanitizer.Sanitize(note.Title)}.pdf";
+
+                var entry = archive.CreateEntry(entryName);
+                using var entryStream = entry.Open();
+                await entryStream.WriteAsync(pdfBytes);
+            }
+
+            // Piles — each becomes a subfolder containing its notes as PDFs
+            foreach (var pile in folder.Piles)
+            {
+                var pileFolder = FileNameSanitizer.Sanitize(pile.Name);
+
+                foreach (var pn in pile.PileNotes)
+                {
+                    var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_NoteExport.cshtml",
+                        new NoteExportModel { Title = pn.Note.Title, Content = pn.Note.Content });
+                    var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
+                    var entryName = $"{pileFolder}/{FileNameSanitizer.Sanitize(pn.Note.Title)}.pdf";
+
+                    var entry = archive.CreateEntry(entryName);
+                    using var entryStream = entry.Open();
+                    await entryStream.WriteAsync(pdfBytes);
+                }
+            }
+        }
+
+        memoryStream.Position = 0;
+        var zipFilename = $"{FileNameSanitizer.Sanitize(folder.Name)}.zip";
+        return File(memoryStream.ToArray(), "application/zip", zipFilename);
     }
 }

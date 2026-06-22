@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NoteVault.Database;
 using NoteVault.Models;
+using NoteVault.Services;
 using NoteVault.ViewModels;
  
 namespace NoteVault.Controllers;
@@ -13,11 +14,18 @@ public class PilesController : Controller
 {
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RazorViewRenderer _viewRenderer;
+    private readonly PdfService _pdfService;
  
-    public PilesController(AppDbContext context, UserManager<ApplicationUser> userManager)
+    public PilesController(AppDbContext context,
+        UserManager<ApplicationUser> userManager,
+        RazorViewRenderer viewRenderer,
+        PdfService pdfService)
     {
         _context = context;
         _userManager = userManager;
+        _viewRenderer = viewRenderer;
+        _pdfService = pdfService;
     }
  
     // ========= Create Pile =========
@@ -254,5 +262,38 @@ public class PilesController : Controller
  
         TempData["Success"] = $"Pile \"{pile.Name}\" moved to trash.";
         return RedirectToAction("Details", "Folders", new { id = folderId });
+    }
+    
+    // ====== Export PIle ======
+    [HttpGet]
+    public async Task<IActionResult> Export(int id)
+    {
+        var userId = _userManager.GetUserId(User);
+
+        var pile = await _context.Piles
+            .Include(p => p.Folder)
+            .Include(p => p.PileNotes.OrderBy(pn => pn.SortOrder))
+            .ThenInclude(pn => pn.Note)
+            .FirstOrDefaultAsync(p => p.Id == id && p.Folder.UserId == userId);
+
+        if (pile == null) return NotFound();
+
+        var model = new PileExportModel
+        {
+            PileName = pile.Name,
+            Notes = pile.PileNotes
+                .Select(pn => new NoteExportModel
+                {
+                    Title = pn.Note.Title,
+                    Content = pn.Note.Content
+                })
+                .ToList()
+        };
+
+        var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_PileExport.cshtml", model);
+        var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
+        var filename = $"{FileNameSanitizer.Sanitize(pile.Name)}.pdf";
+
+        return File(pdfBytes, "application/pdf", filename);
     }
 }

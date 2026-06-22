@@ -144,7 +144,7 @@
                 </div>
             }
 
-            <!-- ═══════ Pinned Piles ═══════ -->
+            <!-- ======= Pinned Piles ======= -->
             @if (Model.PinnedPiles.Any())
             {
                 <h6 class="text-muted text-uppercase small mb-2 mt-4">📌 Pinned Piles</h6>
@@ -201,7 +201,7 @@
                                                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editPileModal"
                                                             onclick="setEditPile(@pile.Id, '@pile.Name', '@(pile.Color ?? "")', '@(pile.Icon ?? "")')">Edit</button>
                                                 </li>
-                                                <li><a class="dropdown-item" href="#">Export</a></li>
+                                                <li><a class="dropdown-item" asp-controller="Piles" asp-action="Export" asp-route-id="@pile.Id" >Export</a></li>
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
                                                     <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deletePileModal"
@@ -276,7 +276,7 @@
                 </div>
             }
 
-            <!-- ═══════ Regular Piles ═══════ -->
+            <!-- ======= Regular Piles ======= -->
             @if (Model.Piles.Any())
             {
                 <h6 class="text-muted text-uppercase small mb-2 mt-4">Piles</h6>
@@ -333,7 +333,7 @@
                                                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editPileModal"
                                                             onclick="setEditPile(@pile.Id, '@pile.Name', '@(pile.Color ?? "")', '@(pile.Icon ?? "")')">Edit</button>
                                                 </li>
-                                                <li><a class="dropdown-item" href="#">Export</a></li>
+                                                <li><a class="dropdown-item" asp-controller="Piles" asp-action="Export" asp-route-id="@pile.Id">Export</a></li>
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
                                                     <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deletePileModal"
@@ -408,7 +408,7 @@
                 </div>
             }
 
-            <!-- ═══════ Loose Notes ═══════ -->
+            <!-- ======= Loose Notes ======= -->
             @if (Model.Notes.Any())
             {
                 <h6 class="text-muted text-uppercase small mb-2 mt-4">Notes</h6>
@@ -489,7 +489,7 @@
                        class="list-group-item list-group-item-action @(anyModeActive ? "disabled pe-none" : "")">
                         ⇅ Reorder Piles
                     </a>
-                    <a href="#" class="list-group-item list-group-item-action @(anyModeActive ? "disabled pe-none" : "")">
+                    <a asp-action="Export" asp-route-id="@Model.Id" class="list-group-item list-group-item-action @(anyModeActive ? "disabled pe-none" : "")">
                         📥 Export
                     </a>
                     <button class="list-group-item list-group-item-action text-danger @(anyModeActive ? "disabled" : "")"

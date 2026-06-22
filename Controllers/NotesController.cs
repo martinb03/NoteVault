@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NoteVault.Database;
 using NoteVault.Models;
+using NoteVault.Services;
 using NoteVault.ViewModels;
  
 namespace NoteVault.Controllers;
@@ -13,11 +14,18 @@ public class NotesController : Controller
 {
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RazorViewRenderer _viewRenderer;
+    private readonly PdfService _pdfService;
  
-    public NotesController(AppDbContext context, UserManager<ApplicationUser> userManager)
+    public NotesController(AppDbContext context,
+        UserManager<ApplicationUser> userManager,
+        RazorViewRenderer viewRenderer,
+        PdfService pdfService)
     {
         _context = context;
         _userManager = userManager;
+        _viewRenderer = viewRenderer;
+        _pdfService = pdfService;
     }
  
     // ══════════════ Notes List ══════════════════════════
@@ -472,6 +480,25 @@ public class NotesController : Controller
             .OrderBy(f => f.Name)
             .Select(f => new FolderSelectItem { Id = f.Id, Name = f.Name })
             .ToListAsync();
+    }
+    
+    [HttpGet]
+    public async Task<IActionResult> Export(int id)
+    {
+        var userId = _userManager.GetUserId(User);
+
+        var note = await _context.Notes
+            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+
+        if (note == null) return NotFound();
+
+        var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_NoteExport.cshtml",
+            new NoteExportModel { Title = note.Title, Content = note.Content });
+
+        var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
+        var filename = $"{FileNameSanitizer.Sanitize(note.Title)}.pdf";
+
+        return File(pdfBytes, "application/pdf", filename);
     }
 }
  

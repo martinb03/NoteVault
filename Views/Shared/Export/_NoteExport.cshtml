@@ -1,0 +1,69 @@
+@model NoteVault.ViewModels.NoteExportModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>@Model.Title</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #222;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            font-size: 22pt;
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #D4622B;
+            color: #222;
+        }
+        .content {
+            margin-top: 1rem;
+        }
+        .content p, .content ul, .content ol, .content blockquote {
+            margin: 0.5rem 0;
+        }
+        .content h1, .content h2, .content h3 { color: #333; }
+        .content blockquote {
+            border-left: 3px solid #D4622B;
+            padding-left: 1rem;
+            color: #555;
+            margin: 1rem 0;
+        }
+        .content pre {
+            background: #f4f4f4;
+            padding: 0.75rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .content code {
+            background: #f4f4f4;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .content img { max-width: 100%; height: auto; }
+        .content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1rem 0;
+        }
+        .content table td, .content table th {
+            border: 1px solid #ccc;
+            padding: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+<h1>@Model.Title</h1>
+<div class="content">
+    @Html.Raw(Model.Content)
+</div>
+</body>
+</html>

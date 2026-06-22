@@ -172,7 +172,7 @@
                     <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-from="@Context.Request.Query["from"]" class="list-group-item list-group-item-action">
                         ✏️ Edit
                     </a>
-                    <a href="#" class="list-group-item list-group-item-action">
+                    <a asp-action="Export" asp-route-id="@Model.Id" class="list-group-item list-group-item-action">
                         📥 Export
                     </a>
                     <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#changeFolderModal">

@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NoteVault.Database;
 using NoteVault.Models;
+using System.Threading.Tasks;
+using NoteVault.Services;
 
 namespace NoteVault;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,10 @@ public class Program
         {
             optionsBuilder.UseNpgsql(builder.Configuration["DbConnectionString"]!);
         });
+
+        builder.Services.AddSingleton<PdfService>();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<RazorViewRenderer>();
         
         builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
@@ -59,7 +65,10 @@ public class Program
         app.MapControllerRoute(
             name: "default",
             pattern: "{controller=Home}/{action=Index}/{id?}");
-
-        app.Run();
+        
+        // Ensure Chromium is downloaded for PDF export
+        await new PuppeteerSharp.BrowserFetcher().DownloadAsync();
+        
+        await app.RunAsync();
     }
 }
