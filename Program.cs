@@ -64,7 +64,7 @@ public class Program
 
         app.MapControllerRoute(
             name: "default",
-            pattern: "{controller=Home}/{action=Index}/{id?}");
+            pattern: "{controller=Dashboard}/{action=Index}/{id?}");
         
         // Ensure Chromium is downloaded for PDF export
         await new PuppeteerSharp.BrowserFetcher().DownloadAsync();

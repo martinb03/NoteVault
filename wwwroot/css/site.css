@@ -27,6 +27,10 @@ html {
   border-color: #cc6e2e;
 }
 
+.navbar {
+  background-color: var(--brand-orange);
+}
+
 .navbar .nav-link,
 .navbar .navbar-brand{
   border-radius: 6px;
@@ -64,5 +68,134 @@ html {
 body {
   margin-bottom: 60px;
   font-family: "Adwaita Mono", monospace;
-  background: #f4f4f4;
+  background: #fbfaf9;
+}
+/* ====== reusable tokens ====== */
+:root {
+  --brand-orange: #EA7232;/*#D4622B*/
+  --brand-orange-light: #FF8C42;
+  --surface: #ffffff;
+  --surface-subtle: #f8f9fa;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --border-soft: #e9ecef;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+/* ====== soft card ====== */
+.soft-card {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 1.5rem;
+  transition: box-shadow 0.2s;
+}
+
+.soft-card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.soft-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.soft-card-header .header-icon {
+  font-size: 1rem;
+}
+
+/* ====== note tag badges (for views) ====== */
+.btn-pill {
+  border-radius: var(--radius-pill);
+  padding: 0.45rem 1.25rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  border: 1.5px solid transparent;
+}
+
+.btn-pill-primary {
+  background: var(--brand-orange);
+  color: white;
+}
+
+.btn-pill-primary:hover {
+  background: var(--brand-orange-light);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.btn-pill-outline {
+  background: transparent;
+  color: var(--brand-orange);
+  border-color: var(--brand-orange);
+}
+
+.btn-pill-outline:hover {
+  background: var(--brand-orange);
+  color: white;
+}
+
+/* ====== dashboard list item ====== */
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.4rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s;
+  margin: 0 -0.4rem;
+}
+
+.dash-row:hover {
+  background-color: var(--surface-subtle);
+  color: inherit;
+}
+
+.dash-row .dash-title {
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-grow:1;
+  min-width: 0;
+}
+
+.dash-row .dash-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ====== welcome empty state ====== */
+.welcome-card {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 3rem 2rem;
+  text-align: center;
+  max-width: 500px;
+  margin: 4rem auto;
+}
+
+.welcome-card h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.welcome-card p {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
 }

@@ -1,0 +1,323 @@
+@using NoteVault.ViewModels
+@model NoteVault.ViewModels.DashboardViewModel
+
+@{
+    ViewData["Title"] = "Home";
+    Layout = "_Layout";
+    var greeting = DateTime.Now.Hour switch
+    {
+        < 5 => "Still up?",
+        < 12 => "Good morning!",
+        < 18 => "Good afternoon!",
+        _ => "Good evening!"
+    };
+}
+
+<style>
+    .dashboard-page {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    /* The contained frame that holds everything */
+    .dashboard-frame {
+        background: #fbf5f0;
+        border-radius: 16px;
+        padding: 2rem;
+        border: 1px solid #e8d8c4;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Header strip inside the frame */
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid rgba(212, 98, 43, 0.15);
+    }
+    .dashboard-accent-bar {
+        width: 4px;
+        height: 48px;
+        background: var(--brand-orange);
+        border-radius: 999px;
+    }
+    .dashboard-header h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-primary);
+    }
+    .dashboard-header .date {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 0.2rem;
+    }
+
+    /* grid of cards */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+    }
+    .dashboard-random-row {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    .dashboard-random-row .soft-card {
+        width: 60%;
+        min-width: 320px;
+    }
+    @@media (max-width: 768px) {
+        .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Override soft-card header for dashboard - icon in brand color */
+    .dashboard-section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+    .dashboard-section-header i {
+        color: var(--brand-orange);
+        font-size: 1rem;
+    }
+
+    /* Note row with icon */
+    .dash-row i.bi-journal-text {
+        color: var(--brand-orange);
+        opacity: 0.7;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    .empty-section {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        text-align: center;
+        padding: 1rem 0;
+        font-style: italic;
+    }
+
+    /* Random card specific */
+    .random-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-decoration: none;
+        display: block;
+        margin-bottom: 0.4rem;
+    }
+    .random-title:hover {
+        color: var(--brand-orange);
+    }
+    .random-meta {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.65rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .random-content {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin-bottom: 0.75rem;
+        max-height: 4.5em;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+    .random-tags {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+    }
+    .random-tags:empty {
+        margin-bottom: 0;
+    }
+</style>
+
+<div class="dashboard-page">
+    @if (Model.IsEmpty)
+    {
+        <div class="welcome-card">
+            <h2>Welcome, @Model.DisplayName</h2>
+            <p>You don't have any notes yet. Create one to get started.</p>
+            <a asp-controller="Notes" asp-action="Index" class="btn btn-pill btn-pill-primary">
+                <i class="bi bi-plus-lg"></i> New Note
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="dashboard-frame">
+
+            <!-- Header strip inside frame -->
+            <div class="dashboard-header">
+                <div class="dashboard-accent-bar"></div>
+                <div>
+                    <h1>@greeting</h1>
+                    <div class="date">@DateTime.Now.ToString("dddd, MMMM d")</div>
+                </div>
+            </div>
+
+            <!-- Grid -->
+            <div class="dashboard-grid">
+
+                <!-- Recently Opened -->
+                <div class="soft-card">
+                    <div class="dashboard-section-header">
+                        <i class="bi bi-clock-history"></i>
+                        <span>Recently Opened</span>
+                    </div>
+                    @if (Model.RecentlyOpened.Any())
+                    {
+                        @foreach (var n in Model.RecentlyOpened)
+                        {
+                            <a asp-controller="Notes" asp-action="Details" asp-route-id="@n.Id" class="dash-row">
+                                <i class="bi bi-journal-text"></i>
+                                <span class="dash-title">@n.Title</span>
+                                <span class="dash-meta">
+                                    @if (n.LastAccessedAt.HasValue)
+                                    {
+                                        <partial name="_LocalDate" model="n.LastAccessedAt.Value" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                                    }
+                                </span>
+                            </a>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-section">No notes opened yet.</div>
+                    }
+                </div>
+
+                <!-- Frequently Visited -->
+                <div class="soft-card">
+                    <div class="dashboard-section-header">
+                        <i class="bi bi-fire"></i>
+                        <span>Frequently Visited</span>
+                    </div>
+                    @if (Model.FrequentlyVisited.Any())
+                    {
+                        @foreach (var n in Model.FrequentlyVisited)
+                        {
+                            <a asp-controller="Notes" asp-action="Details" asp-route-id="@n.Id" class="dash-row">
+                                <i class="bi bi-journal-text"></i>
+                                <span class="dash-title">@n.Title</span>
+                                <span class="dash-meta">@n.ViewCount @(n.ViewCount == 1 ? "view" : "views")</span>
+                            </a>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-section">No visit history yet.</div>
+                    }
+                </div>
+
+                <!-- Recently Created -->
+                <div class="soft-card">
+                    <div class="dashboard-section-header">
+                        <i class="bi bi-stars"></i>
+                        <span>Recently Created</span>
+                    </div>
+                    @foreach (var n in Model.RecentlyCreated)
+                    {
+                        <a asp-controller="Notes" asp-action="Details" asp-route-id="@n.Id" class="dash-row">
+                            <i class="bi bi-journal-text"></i>
+                            <span class="dash-title">@n.Title</span>
+                            <span class="dash-meta">
+                                <partial name="_LocalDate" model="n.CreatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                            </span>
+                        </a>
+                    }
+                </div>
+                
+                <!-- Random -->
+                <div class="soft-card" id="randomCard">
+                    <div class="dashboard-section-header">
+                        <i class="bi bi-dice-5"></i>
+                        <span>Random</span>
+                    </div>
+                    @if (Model.Random != null)
+                    {
+                        <a asp-controller="Notes" asp-action="Details" asp-route-id="@Model.Random.Id" class="random-title" id="randomTitle">
+                            @Model.Random.Title
+                        </a>
+                        <div class="random-meta" id="randomMeta">
+                            @if (!string.IsNullOrEmpty(Model.Random.FolderName))
+                            {
+                                <i class="bi bi-folder"></i><span>@Model.Random.FolderName</span>
+                            }
+                        </div>
+                        <div class="random-content" id="randomContent">
+                            @(string.IsNullOrWhiteSpace(Model.Random.ContentPreview) ? "(empty note)" : Model.Random.ContentPreview)
+                        </div>
+                        <div class="random-tags" id="randomTags">
+                            @foreach (var t in Model.Random.Tags.Take(4))
+                            {
+                                <span class="note-tag-badge" style="border-color: @(t.Color ?? "#868E96"); background-color: @((t.Color ?? "#868E96") + "33");">@t.Name</span>
+                            }
+                        </div>
+                        <button type="button" class="btn btn-pill btn-pill-outline" id="shuffleBtn">
+                            <i class="bi bi-shuffle"></i> Shuffle
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+(function() {
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    if (!shuffleBtn) return;
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    shuffleBtn.addEventListener('click', async function() {
+        shuffleBtn.disabled = true;
+        try {
+            const res = await fetch('/Dashboard/ShuffleRandom');
+            const data = await res.json();
+            if (!data.success) return;
+
+            const n = data.note;
+            document.getElementById('randomTitle').textContent = n.title;
+            document.getElementById('randomTitle').href = `/Notes/Details/${n.id}`;
+
+            const metaEl = document.getElementById('randomMeta');
+            metaEl.innerHTML = n.folderName ? `<i class="bi bi-folder"></i><span>${escapeHtml(n.folderName)}</span>` : '';
+
+            const contentEl = document.getElementById('randomContent');
+            contentEl.textContent = n.contentPreview && n.contentPreview.trim() ? n.contentPreview : '(empty note)';
+
+            const tagsEl = document.getElementById('randomTags');
+            tagsEl.innerHTML = (n.tags || []).slice(0, 4).map(t => {
+                const color = t.color || '#868E96';
+                return `<span class="note-tag-badge" style="border-color: ${color}; background-color: ${color}33;">${escapeHtml(t.name)}</span>`;
+            }).join('');
+        } catch (e) {
+            console.error(e);
+        } finally {
+            shuffleBtn.disabled = false;
+        }
+    });
+})();
+</script>
