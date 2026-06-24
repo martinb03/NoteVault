@@ -68,7 +68,7 @@ public class AccountController : Controller
                 await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("DisplayName", user.DisplayName));
             }
 
-            return RedirectToAction("Index", "Home");
+            return RedirectToAction("Index", "Dashboard");
         }
  
         ModelState.AddModelError(string.Empty, "Invalid email or password.");

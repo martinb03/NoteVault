@@ -67,108 +67,125 @@
     .search-result-snippet b, .search-result-title b { background-color: #FFF3CD; font-weight: 600; }
 </style>
 
-<body><!-- style="font-family: 'Adwaita Mono'"-->
+<body>
 <header >
-    <nav class="navbar navbar-expand-sm navbar-light border-bottom box-shadow mb-3 d-flex justify-content-between align-items-center px-5" style="height: 75px;"> <!--#FF8C42-->
-        <div style="flex: 1;">
-            <a class="navbar-brand text-white" asp-area="" asp-controller="Dashboard" asp-action="Index">
-                <!-- <img class="logo-image", src=""/>-->
-                <span class="logo-text" style="font-size:30px ; font-weight: bold; text-shadow: 0 0 2px black;" >NoteVault</span>
+    <nav class="navbar navbar-expand-lg nv-navbar">
+        <div class="container-fluid px-4">
+     
+            <!-- Brand: icon + wordmark -->
+            <a class="navbar-brand nv-brand d-flex align-items-center gap-2"
+               asp-controller="Dashboard" asp-action="Index">
+                <i class="bi bi-journal-bookmark-fill"></i>
+                <span>NoteVault</span>
             </a>
-        </div>
-        
-        
-        <div class="position-relative mx-auto" style="width: 450px;">
-            <div id="searchBar" class="d-flex align-items-center bg-white rounded-pill px-2"
-            style="min-height: 38px; flex-wrap: wrap; gap: 4px; padding-top: 4px; padding-bottom: 4px;">
- 
-                <!-- Filter chips container - chips get added here dynamically -->
-                <div id="filterChips" class="d-flex align-items-center" style="gap: 4px; flex-wrap: wrap;"></div>
- 
-                <!-- Text input -->
-                <input type="text" id="searchInput" class="border-0 flex-grow-1"
-                    placeholder="Search..." autocomplete="off"
-                    style="font-size: 15px; min-width: 100px; outline: none; background: transparent;"/>
- 
-                <!-- Filter button -->
-                <button type="button" id="filterBtn" class="btn btn-link p-0 text-muted"
-                        data-bs-toggle="modal" data-bs-target="#searchFilterModal"
-                        style="font-size: 1rem;" title="Filter">
-                    ⚙
-                </button>
+     
+            <!-- Search bar (centered) -->
+            <div class="nv-search-wrap">
+                <div id="searchBar" class="nv-searchbar d-flex align-items-center">
+                    <i class="bi bi-search nv-search-icon"></i>
+     
+                    <div id="filterChips" class="d-flex align-items-center" style="gap: 4px; flex-wrap: wrap;"></div>
+     
+                    <input type="text" id="searchInput" class="nv-search-input flex-grow-1"
+                           placeholder="Search..." autocomplete="off"/>
+     
+                    <button type="button" id="filterBtn" class="btn btn-link p-0 nv-search-filter"
+                            data-bs-toggle="modal" data-bs-target="#searchFilterModal" title="Filter">
+                        <i class="bi bi-sliders"></i>
+                    </button>
+                </div>
+     
+                <div id="searchDropdown" class="position-absolute bg-white rounded shadow d-none"
+                     style="top: 100%; left: 0; right: 0; margin-top: 4px; z-index: 1050; max-height: 400px; overflow-y: auto;">
+                </div>
             </div>
- 
-            <!-- Live results dropdown -->
-            <div id="searchDropdown" class="position-absolute bg-white rounded shadow d-none"
-            style="top: 100%; left: 0; right: 0; margin-top: 4px; z-index: 1050; max-height: 400px; overflow-y: auto;">
-            </div>
-        </div>
-        
-        <div style="flex:1;" class="d-flex justify-content-end" >
-            <ul class="navbar-nav flex-row gap-1" style="text-shadow: 0 0 1px black; font-weight: bold">
+     
+            <!-- Nav links + user -->
+            <ul class="navbar-nav nv-nav-links d-flex align-items-center gap-1">
+                @{
+                    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+                }
                 <li class="nav-item">
-                    <a class="nav-link text-white" style="width: 90px; text-align: center" asp-area="" asp-controller="Folders" asp-action="Index">Folders</a>
+                    <a asp-controller="Folders" asp-action="Index"
+                       class="nav-link nv-link @(currentController == "Folders" ? "active" : "")">Folders</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-white" style="width: 90px; text-align: center" asp-area="" asp-controller="Notes" asp-action="Index">Notes</a>
+                    <a asp-controller="Notes" asp-action="Index"
+                       class="nav-link nv-link @(currentController == "Notes" ? "active" : "")">Notes</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-white" style="width: 90px; text-align: center" asp-area="" asp-controller="Tags" asp-action="Index">Tags</a>
+                    <a asp-controller="Tags" asp-action="Index"
+                       class="nav-link nv-link @(currentController == "Tags" ? "active" : "")">Tags</a>
                 </li>
-                <li class="nav-item">
-                    <div class="dropdown ms-3">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <a class="nav-link dropdown-toggle text-white" style="width: 90px; text-align: center" href="#" role="button" data-bs-toggle="dropdown">
-                                @User.FindFirst("DisplayName")?.Value
+     
+                <!-- User dropdown -->
+                <li class="nav-item dropdown ms-2">
+                    <a class="nav-link nv-link nv-user d-flex align-items-center gap-2"
+                       data-bs-toggle="dropdown" href="#">
+                        <i class="bi bi-person-circle"></i>
+                        <span>@User.FindFirst("DisplayName")?.Value</span>
+                        <i class="bi bi-chevron-down nv-user-chev"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end nv-dropdown">
+                        <li>
+                            <a class="dropdown-item nv-dropdown-item" asp-controller="Settings" asp-action="Index">
+                                <i class="bi bi-gear"></i> Settings
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a class="dropdown-item" asp-controller="Settings" asp-action="Index">Settings</a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" asp-controller="Trash" asp-action="Index">Trash</a>
-                                </li>
-                                <li>
-                                    <form asp-controller="Account" asp-action="Logout" method="post">
-                                        <button type="submit" class="dropdown-item">Log out</button>
-                                    </form>
-                                </li>
-                            </ul>
-                        }
-                    </div>
+                        </li>
+                        <li>
+                            <a class="dropdown-item nv-dropdown-item" asp-controller="Trash" asp-action="Index">
+                                <i class="bi bi-trash"></i> Trash
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                                <button type="submit" class="dropdown-item nv-dropdown-item text-danger">
+                                    <i class="bi bi-box-arrow-right"></i> Log out
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </li>
             </ul>
+     
         </div>
     </nav>
 </header>
 
 <!-- Filter Modal -->
 <div class="modal fade" id="searchFilterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Filter</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-sliders me-2" style="color: var(--brand-orange);"></i>
+                    Filter search
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Folder</label>
+ 
+                <div class="filter-section">
+                    <div class="filter-label">
+                        <i class="bi bi-folder"></i> Folder
+                    </div>
                     <select id="filterFolderSelect" class="form-select">
                         <option value="">Any folder</option>
-                        <!-- Folders populated by JS on modal open -->
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Tags</label>
-                    <div id="filterTagsContainer" class="d-flex flex-wrap gap-2">
-                        <!-- Tag chips populated by JS on modal open -->
+ 
+                <div class="filter-section">
+                    <div class="filter-label">
+                        <i class="bi bi-tags"></i> Tags
                     </div>
+                    <div id="filterTagsContainer"></div>
                 </div>
+ 
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="applyFilterBtn">Apply</button>
+                <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="applyFilterBtn" class="btn btn-pill btn-pill-primary">Apply</button>
             </div>
         </div>
     </div>
@@ -273,15 +290,42 @@
         runSearch();
         bootstrap.Modal.getInstance(document.getElementById('searchFilterModal')).hide();
     });
- 
-    // ── Render chips in the search bar ──
+
+    function renderDropdown(results) {
+        const q = searchInput.value.trim();
+        const seeAllParams = new URLSearchParams();
+        if (q) seeAllParams.set('q', q);
+        activeTagIds.forEach(id => seeAllParams.append('tagIds', id));
+        if (activeFolderId !== null) seeAllParams.set('folderId', activeFolderId);
+        const seeAllUrl = `/Search/Results?${seeAllParams.toString()}`;
+
+        if (results.length === 0) {
+            searchDropdown.innerHTML = `
+            <div class="search-empty">No results</div>
+            <a href="${seeAllUrl}" class="search-result-see-all">See all results <i class="bi bi-arrow-right"></i></a>
+        `;
+            searchDropdown.classList.remove('d-none');
+            return;
+        }
+
+        searchDropdown.innerHTML = results.map(r => `
+        <a href="/Notes/Details/${r.id}?from=search" class="search-result-item">
+            ${r.folderName ? `<div class="search-result-folder"><i class="bi bi-folder"></i> ${escapeHtml(r.folderName)}</div>` : ''}
+            <div class="search-result-title">${stripBold(r.titleHighlight)}</div>
+            <div class="search-result-snippet">${stripBold(r.snippet)}</div>
+        </a>
+    `).join('') + `<a href="${seeAllUrl}" class="search-result-see-all">See all results <i class="bi bi-arrow-right"></i></a>`;
+        searchDropdown.classList.remove('d-none');
+    }
+
+// Also update renderChips to use Bootstrap icon instead of emoji:
     function renderChips() {
         filterChips.innerHTML = '';
- 
+
         if (activeFolderId !== null) {
             const chip = document.createElement('span');
             chip.className = 'search-chip search-chip-folder';
-            chip.innerHTML = `📁 ${escapeHtml(activeFolderName)}<span class="chip-close">✕</span>`;
+            chip.innerHTML = `<i class="bi bi-folder"></i> ${escapeHtml(activeFolderName)}<span class="chip-close"><i class="bi bi-x"></i></span>`;
             chip.addEventListener('click', function() {
                 activeFolderId = null;
                 activeFolderName = null;
@@ -290,14 +334,13 @@
             });
             filterChips.appendChild(chip);
         }
- 
+
         activeTagsMap.forEach((info, id) => {
             const chip = document.createElement('span');
             chip.className = 'search-chip';
             chip.style.borderColor = info.color;
             chip.style.backgroundColor = info.color + '33';
-            chip.style.color = '#333';
-            chip.innerHTML = `${escapeHtml(info.name)}<span class="chip-close">✕</span>`;
+            chip.innerHTML = `${escapeHtml(info.name)}<span class="chip-close"><i class="bi bi-x"></i></span>`;
             chip.addEventListener('click', function() {
                 activeTagIds.delete(id);
                 activeTagsMap.delete(id);
@@ -335,32 +378,7 @@
         }
     }
 
-    function renderDropdown(results) {
-        const q = searchInput.value.trim();
-        const seeAllParams = new URLSearchParams();
-        if (q) seeAllParams.set('q', q);
-        activeTagIds.forEach(id => seeAllParams.append('tagIds', id));
-        if (activeFolderId !== null) seeAllParams.set('folderId', activeFolderId);
-        const seeAllUrl = `/Search/Results?${seeAllParams.toString()}`;
-
-        if (results.length === 0) {
-            searchDropdown.innerHTML = `
-            <div class="p-3 text-muted text-center">No results</div>
-            <a href="${seeAllUrl}" class="d-block text-center py-2 small text-decoration-none" style="border-top: 1px solid #eee;">See all results →</a>
-        `;
-            searchDropdown.classList.remove('d-none');
-            return;
-        }
-
-        searchDropdown.innerHTML = results.map(r => `
-        <a href="/Notes/Details/${r.id}?from=search" class="search-result-item">
-            ${r.folderName ? `<span class="search-result-folder">📁 ${escapeHtml(r.folderName)}</span>` : ''}
-            <div class="search-result-title">${stripBold(r.titleHighlight)}</div>
-            <div class="search-result-snippet">${stripBold(r.snippet)}</div>
-        </a>
-    `).join('') + `<a href="${seeAllUrl}" class="d-block text-center py-2 small text-decoration-none" style="border-top: 1px solid #eee;">See all results →</a>`;
-        searchDropdown.classList.remove('d-none');
-    }
+   
  
     // ── Debounced search on typing ──
     searchInput.addEventListener('input', function() {
