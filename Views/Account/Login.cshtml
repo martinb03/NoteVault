@@ -1,58 +1,53 @@
 @model NoteVault.ViewModels.LoginViewModel
-
 @{
     ViewData["Title"] = "Log In";
     Layout = "_AuthLayout";
 }
 
-<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
-    <div class="card shadow" style="width: 400px;">
-        <div class="card-body p-4">
-            <!--<h3 class="card-title text-center mb-2">NoteVault</h3>-->
-            <p class="text-center mb-4" style="font-weight: bold; font-size: 28px; ">Log in</p>
+<div class="d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="auth-card nv-form">
+        <h1 class="auth-title">Log in</h1>
 
-            <form asp-action="Login" method="post">
-                <div asp-validation-summary="All" class="text-danger mb-3"></div>
+        <form asp-action="Login" method="post">
+            <div asp-validation-summary="All" class="text-danger small mb-3"></div>
 
-                <div class="mb-3">
-                    <label asp-for="Email" class="form-label"></label>
-                    <input asp-for="Email" class="form-control" placeholder="you@example.com" />
-                    <span asp-validation-for="Email" class="text-danger"></span>
-                </div>
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" placeholder="you@example.com" autofocus/>
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
 
-                <div class="mb-3">
-                    <label asp-for="Password" class="form-label"></label>
-                    <div class="input-group">
-                        <input asp-for="Password" class="form-control" placeholder="Your password" id="passwordInput" />
-                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('passwordInput', this)">Show</button>
-                    </div>
-                    <span asp-validation-for="Password" class="text-danger"></span>
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label"></label>
+                <div class="auth-input-wrap">
+                    <input asp-for="Password" class="form-control" placeholder="Your password" id="passwordInput"/>
+                    <button type="button" class="auth-show-btn" onclick="togglePassword('passwordInput', this)">Show</button>
                 </div>
+                <span asp-validation-for="Password" class="text-danger small"></span>
+            </div>
 
-                <div class="mb-4 form-check">
-                    <input asp-for="RememberMe" class="form-check-input" />
-                    <label asp-for="RememberMe" class="form-check-label"></label>
+            <div class="mb-4 form-check">
+                <input asp-for="RememberMe" class="form-check-input"/>
+                <label asp-for="RememberMe" class="form-check-label" style="text-transform: none; font-weight: normal;"></label>
+            </div>
+
+            <button type="submit" class="btn btn-pill btn-pill-primary w-100">Log in</button>
+
+            @if ((bool)(ViewData["IsRegistrationOpen"] ?? false))
+            {
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        Don't have an account? <a asp-action="Register" class="auth-link">Create one</a>
+                    </small>
                 </div>
-                <div class="d-flex align-items-center justify-content-center">
-                    <button type="submit" class="btn btn-primary w-50 ">Log In</button>
-                </div>
-                
-                @if ((bool)(ViewData["IsRegistrationOpen"] ?? false))
-                {
-                    <div class="text-center mt-3">
-                        <small class="text-muted">
-                            Don't have an account? <a asp-action="Register" class="text-decoration-none">Create one</a>
-                        </small>
-                    </div>
-                }
-                
-            </form>
-        </div>
+            }
+        </form>
     </div>
 </div>
+
 <script>
     function togglePassword(inputId, button) {
-        var input = document.getElementById(inputId);
+        const input = document.getElementById(inputId);
         if (input.type === "password") {
             input.type = "text";
             button.textContent = "Hide";

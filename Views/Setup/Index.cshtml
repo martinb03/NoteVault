@@ -1,54 +1,82 @@
 @model NoteVault.ViewModels.SetupViewModel
-
 @{
     ViewData["Title"] = "Setup";
     Layout = "_AuthLayout";
 }
 
-<div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="card shadow" style="width: 400px;">
-        <div class="card-body p-4">
-            <!--h3 class="card-title text-center mb-2">NoteVault</!--h3-->
-            <p class="text-center text-muted mb-4">Create your admin account to get started.</p>
+<div class="d-flex justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="auth-card nv-form">
+        <h1 class="auth-title">Welcome</h1>
+        <p class="auth-subtitle">Create your admin account to get started.</p>
 
-            <form asp-action="Index" method="post">
-                <div asp-validation-summary="All" class="text-danger mb-3"></div>
+        <form asp-action="Index" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
 
-                <div class="mb-3">
-                    <label asp-for="DisplayName" class="form-label"></label>
-                    <input asp-for="DisplayName" class="form-control" placeholder="Your name" />
-                    <span asp-validation-for="DisplayName" class="text-danger"></span>
+            <div class="mb-3">
+                <label asp-for="DisplayName" class="form-label"></label>
+                <input asp-for="DisplayName" class="form-control" placeholder="Your name" autofocus/>
+                <span asp-validation-for="DisplayName" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" placeholder="admin@example.com"/>
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label"></label>
+                <div class="auth-input-wrap">
+                    <input asp-for="Password" class="form-control" placeholder="At least 10 characters" id="passwordInput"/>
+                    <button type="button" class="auth-show-btn" onclick="togglePassword('passwordInput', this)">Show</button>
                 </div>
+                <span asp-validation-for="Password" class="text-danger small"></span>
 
-                <div class="mb-3">
-                    <label asp-for="Email" class="form-label"></label>
-                    <input asp-for="Email" class="form-control" placeholder="admin@example.com" />
-                    <span asp-validation-for="Email" class="text-danger"></span>
-                </div>
-
-                <div class="mb-3">
-                    <label asp-for="Password" class="form-label"></label>
-                    <div class="input-group">
-                        <input asp-for="Password" class="form-control" placeholder="Minimum 10 characters" id="passwordInput" />
-                        <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('passwordInput', this)">Show</button>
+                <div class="pw-rules" id="pwRules">
+                    <div class="pw-rule" data-rule="length">
+                        <i class="bi bi-circle check-off"></i>
+                        <i class="bi bi-check-circle-fill check-on"></i>
+                        At least 10 characters
                     </div>
-                    <span asp-validation-for="Password" class="text-danger"></span>
+                    <div class="pw-rule" data-rule="lower">
+                        <i class="bi bi-circle check-off"></i>
+                        <i class="bi bi-check-circle-fill check-on"></i>
+                        Contains a lowercase letter
+                    </div>
+                    <div class="pw-rule" data-rule="upper">
+                        <i class="bi bi-circle check-off"></i>
+                        <i class="bi bi-check-circle-fill check-on"></i>
+                        Contains an uppercase letter
+                    </div>
+                    <div class="pw-rule" data-rule="digit">
+                        <i class="bi bi-circle check-off"></i>
+                        <i class="bi bi-check-circle-fill check-on"></i>
+                        Contains a number
+                    </div>
                 </div>
+            </div>
 
-                <div class="mb-4">
-                    <label asp-for="ConfirmPassword" class="form-label"></label>
-                    <input asp-for="ConfirmPassword" class="form-control" placeholder="Repeat your password" />
-                    <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+            <div class="mb-4">
+                <label asp-for="ConfirmPassword" class="form-label"></label>
+                <input asp-for="ConfirmPassword" class="form-control" placeholder="Repeat your password" id="confirmInput"/>
+                <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                <div class="pw-rules">
+                    <div class="pw-rule" data-rule="match">
+                        <i class="bi bi-circle check-off"></i>
+                        <i class="bi bi-check-circle-fill check-on"></i>
+                        Passwords match
+                    </div>
                 </div>
+            </div>
 
-                <button type="submit" class="btn btn-primary w-100">Create Admin Account</button>
-            </form>
-        </div>
+            <button type="submit" id="setupBtn" class="btn btn-pill btn-pill-primary w-100" disabled>Create admin account</button>
+        </form>
     </div>
 </div>
+
 <script>
     function togglePassword(inputId, button) {
-        var input = document.getElementById(inputId);
+        const input = document.getElementById(inputId);
         if (input.type === "password") {
             input.type = "text";
             button.textContent = "Hide";
@@ -57,4 +85,33 @@
             button.textContent = "Show";
         }
     }
+
+    (function() {
+        const pwInput = document.getElementById('passwordInput');
+        const confirmInput = document.getElementById('confirmInput');
+        const submitBtn = document.getElementById('setupBtn');
+        const rules = document.querySelectorAll('.pw-rule');
+
+        function evaluate() {
+            const val = pwInput.value;
+            const cVal = confirmInput.value;
+            const checks = {
+                length: val.length >= 10,
+                lower: /[a-z]/.test(val),
+                upper: /[A-Z]/.test(val),
+                digit: /[0-9]/.test(val),
+                match: val.length > 0 && val === cVal
+            };
+
+            rules.forEach(rule => {
+                const key = rule.dataset.rule;
+                if (checks[key]) rule.classList.add('satisfied');
+                else rule.classList.remove('satisfied');
+            });
+
+            submitBtn.disabled = !(checks.length && checks.lower && checks.upper && checks.digit && checks.match);
+        }
+
+        [pwInput, confirmInput].forEach(el => el.addEventListener('input', evaluate));
+    })();
 </script>
