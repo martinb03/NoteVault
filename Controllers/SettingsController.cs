@@ -190,7 +190,7 @@ public class SettingsController : Controller
             TempData["Error"] = string.Join(" ", result.Errors.Select(e => e.Description));
         }
  
-        return RedirectToAction("Index");
+        return Redirect("/Settings/Index#users");
     }
     
     // ---------------- Admin: Reset user password ----------------
@@ -218,7 +218,7 @@ public class SettingsController : Controller
             TempData["Error"] = string.Join(" ", result.Errors.Select(e => e.Description));
         }
  
-        return RedirectToAction("Index");
+        return Redirect("/Settings/Index#users");
     }
     
     // ---------------- Admin: Toggle user enabled/disabled ----------------
@@ -231,7 +231,7 @@ public class SettingsController : Controller
         if (user == null)
         {
             TempData["Error"] = "User not found.";
-            return RedirectToAction("Index");
+            return Redirect("/Settings/Index#users");
         }
  
         if (await _userManager.IsLockedOutAsync(user))
@@ -248,7 +248,7 @@ public class SettingsController : Controller
             TempData["Success"] = $"{user.DisplayName} has been disabled.";
         }
  
-        return RedirectToAction("Index");
+        return Redirect("/Settings/Index#users");
     }
     
     // ---------------- Admin: Delete user ----------------
@@ -263,14 +263,14 @@ public class SettingsController : Controller
         if (user == null)
         {
             TempData["Error"] = "User not found.";
-            return RedirectToAction("Index");
+            return Redirect("/Settings/Index#users");
         }
  
         // Prevent admin from deleting themselves
         if (user.Id == currentUser?.Id)
         {
             TempData["Error"] = "You cannot delete your own account.";
-            return RedirectToAction("Index");
+            return Redirect("/Settings/Index#users");
         }
  
         var result = await _userManager.DeleteAsync(user);
@@ -284,7 +284,7 @@ public class SettingsController : Controller
             TempData["Error"] = string.Join(" ", result.Errors.Select(e => e.Description));
         }
  
-        return RedirectToAction("Index");
+        return Redirect("/Settings/Index#users");
     }
     
     // ------- Admin: Allow open registration -------

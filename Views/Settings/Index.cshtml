@@ -3,174 +3,221 @@
 @{
     ViewData["Title"] = "Settings";
     Layout = "_Layout";
+    var isAdmin = User.IsInRole("Admin");
 }
 
-<div class="container mt-4">
+<div class="container-fluid mt-4" style="max-width: 1500px;">
+
+    <div class="settings-page-header">
+        <div class="accent-bar"></div>
+        <h1>Settings</h1>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="nv-alert alert alert-dismissible fade show">
+            <i class="bi bi-check-circle-fill alert-icon"></i>
+            <span>@TempData["Success"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="nv-alert alert alert-dismissible fade show" style="border-color: var(--danger);">
+            <i class="bi bi-exclamation-circle-fill alert-icon" style="color: var(--danger);"></i>
+            <span>@TempData["Error"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     <div class="row">
 
-        @if (User.IsInRole("Admin"))
+        @if (isAdmin)
         {
             <!-- Sidebar (admin only) -->
-            <div class="col-md-3">
-                <div class="list-group">
-                    <a href="#account" class="list-group-item list-group-item-action active" data-bs-toggle="list">Account</a>
-                    <a href="#users" class="list-group-item list-group-item-action" data-bs-toggle="list">User Management</a>
-                    <a href="#app-settings" class="list-group-item list-group-item-action" data-bs-toggle="list">App Settings</a>
+            <div class="col-md-3 mb-3">
+                <div class="soft-card" style="padding: 0.75rem;">
+                    <div class="nv-vtabs list-group">
+                        <a href="#account" class="nv-vtab list-group-item-action active" data-bs-toggle="list" role="tab">
+                            <i class="bi bi-person"></i> Account
+                        </a>
+                        <a href="#users" class="nv-vtab list-group-item-action" data-bs-toggle="list" role="tab">
+                            <i class="bi bi-people"></i> User Management
+                        </a>
+                        <a href="#app-settings" class="nv-vtab list-group-item-action" data-bs-toggle="list" role="tab">
+                            <i class="bi bi-sliders"></i> App Settings
+                        </a>
+                    </div>
                 </div>
             </div>
         }
 
-        <!-- Main content -->
-        <div class="@(User.IsInRole("Admin") ? "col-md-9" : "col-md-8 mx-auto")">
-
-            <!-- Success/Error messages -->
-            @if (TempData["Success"] != null)
-            {
-                <div class="alert alert-success alert-dismissible fade show">
-                    @TempData["Success"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            }
-            @if (TempData["Error"] != null)
-            {
-                <div class="alert alert-danger alert-dismissible fade show">
-                    @TempData["Error"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            }
+        <div class="@(isAdmin ? "col-md-9" : "col-md-9 mx-auto") nv-form">
 
             <div class="tab-content">
 
                 <!-- ── Account Section ─────────────────────── -->
                 <div class="tab-pane fade show active" id="account">
-                    <h4 class="mb-4">Account Settings</h4>
-
-                    <!-- Display Name -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">Display Name</h6>
+                    <div style="padding-left: 150px; max-width: 800px">
+                        <!-- Display Name -->
+                        <div class="soft-card mb-3">
+                            <div class="settings-section-title">
+                                <i class="bi bi-person-badge"></i> Display Name
+                            </div>
                             <form asp-controller="Settings" asp-action="UpdateDisplayName" method="post">
-                                <div class="d-flex gap-2">
-                                    <input type="text" name="displayName" class="form-control" value="@Model.DisplayName" />
-                                    <button type="submit" class="btn btn-primary">Save</button>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <input type="text" name="displayName" class="form-control" value="@Model.DisplayName"/>
+                                    <button type="submit" class="btn btn-pill btn-pill-primary">Save</button>
                                 </div>
                             </form>
                         </div>
-                    </div>
-
-                    <!-- Email -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">Email</h6>
+                    
+                        <!-- Email -->
+                        <div class="soft-card mb-3">
+                            <div class="settings-section-title">
+                                <i class="bi bi-envelope"></i> Email
+                            </div>
                             <form asp-controller="Settings" asp-action="UpdateEmail" method="post">
-                                <div class="d-flex gap-2">
-                                    <input type="email" name="email" class="form-control" value="@Model.Email" />
-                                    <button type="submit" class="btn btn-primary">Save</button>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <input type="email" name="email" class="form-control" value="@Model.Email"/>
+                                    <button type="submit" class="btn btn-pill btn-pill-primary">Save</button>
                                 </div>
                             </form>
                         </div>
-                    </div>
 
-                    <!-- Change Password -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">Change Password</h6>
-                            <form asp-controller="Settings" asp-action="ChangePassword" method="post">
+                        <!-- Change Password -->
+                        <div class="soft-card mb-3">
+                            <div class="settings-section-title">
+                                <i class="bi bi-key"></i> Change Password
+                            </div>
+                            <form asp-controller="Settings" asp-action="ChangePassword" method="post" id="changePwForm">
                                 <div class="mb-3">
                                     <label class="form-label">Current Password</label>
-                                    <input type="password" name="CurrentPassword" class="form-control" required />
+                                    <input type="password" name="CurrentPassword" id="pwCurrent" class="form-control" required/>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">New Password</label>
-                                    <input type="password" name="NewPassword" class="form-control" required minlength="8" />
+                                    <input type="password" name="NewPassword" id="pwNew" class="form-control" required/>
+                                    <div class="pw-rules" id="pwRules">
+                                        <div class="pw-rule" data-rule="length">
+                                            <i class="bi bi-circle check-off"></i>
+                                            <i class="bi bi-check-circle-fill check-on"></i>
+                                            At least 10 characters
+                                        </div>
+                                        <div class="pw-rule" data-rule="lower">
+                                            <i class="bi bi-circle check-off"></i>
+                                            <i class="bi bi-check-circle-fill check-on"></i>
+                                            Contains a lowercase letter
+                                        </div>
+                                        <div class="pw-rule" data-rule="upper">
+                                            <i class="bi bi-circle check-off"></i>
+                                            <i class="bi bi-check-circle-fill check-on"></i>
+                                            Contains an uppercase letter
+                                        </div>
+                                        <div class="pw-rule" data-rule="digit">
+                                            <i class="bi bi-circle check-off"></i>
+                                            <i class="bi bi-check-circle-fill check-on"></i>
+                                            Contains a number
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Confirm New Password</label>
-                                    <input type="password" name="ConfirmNewPassword" class="form-control" required />
+                                    <input type="password" name="ConfirmNewPassword" id="pwConfirm" class="form-control" required/>
+                                    <div class="pw-rules">
+                                        <div class="pw-rule" data-rule="match">
+                                            <i class="bi bi-circle check-off"></i>
+                                            <i class="bi bi-check-circle-fill check-on"></i>
+                                            Passwords match
+                                        </div>
+                                    </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary">Change Password</button>
+                                <button type="submit" id="changePwBtn" class="btn btn-pill btn-pill-primary" disabled>
+                                    Change Password
+                                </button>
                             </form>
                         </div>
                     </div>
                 </div>
 
-                @if (User.IsInRole("Admin"))
+                @if (isAdmin)
                 {
                     <!-- ── User Management Section ─────────────── -->
                     <div class="tab-pane fade" id="users">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h4 class="mb-0">User Management</h4>
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">Create User</button>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0" style="font-weight: 600;">Users</h5>
+                            <button class="btn btn-pill btn-pill-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                                <i class="bi bi-person-plus"></i> Create User
+                            </button>
                         </div>
 
-                        <!-- Users table -->
-                        <div class="card">
-                            <div class="card-body p-0">
-                                <table class="table table-hover mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Email</th>
-                                            <th>Role</th>
-                                            <th>Created</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="usersTableBody">
-                                        <!-- Loaded via JS -->
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="trash-list" style="padding: 0;">
+                            <table class="nv-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Created</th>
+                                        <th>Status</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <!-- Loaded via JS -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
                     <!-- ── App Settings Section ────────────────── -->
                     <div class="tab-pane fade" id="app-settings">
-                        <h4 class="mb-4">App Settings</h4>
 
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <div class="form-check form-switch">
+                        <div class="soft-card">
+                            <div class="toggle-row">
+                                <div class="toggle-info">
+                                    <div class="toggle-label">Allow open registration</div>
+                                    <div class="toggle-help">When enabled, anyone with access to this app can create an account.</div>
+                                    <div class="save-status" id="openRegistrationStatus"></div>
+                                </div>
+                                <div class="form-check form-switch nv-switch">
                                     <input class="form-check-input" type="checkbox" id="openRegistration"
                                            @(((bool)ViewData["IsRegistrationOpen"]!) ? "checked" : "")>
-                                    <label class="form-check-label" for="openRegistration">Allow open registration</label>
                                 </div>
-                                <small class="text-muted">When enabled, anyone with access to this app can create an account.</small>
-                                <div id="openRegistrationStatus" class="small mt-1"></div>
                             </div>
-                        </div>
 
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h6 class="card-title">Trash Auto-Purge</h6>
-                                <div class="d-flex align-items-center gap-2">
-                                    <input type="number" class="form-control" style="width: 100px;" value="30" min="1" max="365" />
-                                    <span>days</span>
-                                    <button class="btn btn-primary ms-2">Save</button>
+                            <div class="toggle-row">
+                                <div class="toggle-info">
+                                    <div class="toggle-label">Trash auto-purge</div>
+                                    <div class="toggle-help">Items in trash will be permanently deleted after this many days.</div>
                                 </div>
-                                <small class="text-muted">Items in trash will be permanently deleted after this many days.</small>
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                    <input type="number" class="form-control" style="width: 80px;" value="30" min="1" max="365"/>
+                                    <span class="text-muted small">days</span>
+                                    <button class="btn btn-pill btn-pill-outline btn-sm">Save</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 }
-
             </div>
         </div>
     </div>
 </div>
 
-@if (User.IsInRole("Admin"))
+@if (isAdmin)
 {
     <!-- Create User Modal -->
-    <div class="modal fade" id="createUserModal" tabindex="-1">
-        <div class="modal-dialog">
+    <div class="modal fade nv-modal" id="createUserModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Create User</h5>
+                    <h5 class="modal-title">
+                        <i class="bi bi-person-plus"></i> Create User
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form asp-controller="Settings" asp-action="CreateUser" method="post">
+                <form asp-controller="Settings" asp-action="CreateUser" method="post" class="nv-form">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Display Name</label>
@@ -182,7 +229,29 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Password</label>
-                            <input type="password" name="Password" class="form-control" required minlength="8"/>
+                            <input type="password" name="Password" id="cuPassword" class="form-control" required/>
+                            <div class="pw-rules" id="cuPwRules">
+                                <div class="pw-rule" data-rule="length">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    At least 10 characters
+                                </div>
+                                <div class="pw-rule" data-rule="lower">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    Contains a lowercase letter
+                                </div>
+                                <div class="pw-rule" data-rule="upper">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    Contains an uppercase letter
+                                </div>
+                                <div class="pw-rule" data-rule="digit">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    Contains a number
+                                </div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Role</label>
@@ -193,8 +262,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Create</button>
+                        <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="cuSubmit" class="btn btn-pill btn-pill-primary" disabled>Create</button>
                     </div>
                 </form>
             </div>
@@ -202,25 +271,49 @@
     </div>
 
     <!-- Reset Password Modal -->
-    <div class="modal fade" id="resetPasswordModal" tabindex="-1">
-        <div class="modal-dialog">
+    <div class="modal fade nv-modal" id="resetPasswordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Reset Password</h5>
+                    <h5 class="modal-title">
+                        <i class="bi bi-key"></i> Reset Password
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form asp-controller="Settings" asp-action="ResetUserPassword" method="post">
+                <form asp-controller="Settings" asp-action="ResetUserPassword" method="post" class="nv-form">
                     <div class="modal-body">
                         <input type="hidden" name="userId" id="resetPasswordUserId"/>
                         <p>Resetting password for <strong id="resetPasswordUserName"></strong></p>
                         <div class="mb-3">
                             <label class="form-label">New Password</label>
-                            <input type="password" name="newPassword" class="form-control" required minlength="8"/>
+                            <input type="password" name="newPassword" id="rpPassword" class="form-control" required/>
+                            <div class="pw-rules" id="rpPwRules">
+                                <div class="pw-rule" data-rule="length">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    At least 10 characters
+                                </div>
+                                <div class="pw-rule" data-rule="lower">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    Contains a lowercase letter
+                                </div>
+                                <div class="pw-rule" data-rule="upper">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    Contains an uppercase letter
+                                </div>
+                                <div class="pw-rule" data-rule="digit">
+                                    <i class="bi bi-circle check-off"></i>
+                                    <i class="bi bi-check-circle-fill check-on"></i>
+                                    Contains a number
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Reset Password</button>
+                        <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="rpSubmit" class="btn btn-pill btn-pill-primary" disabled>Reset Password</button>
                     </div>
                 </form>
             </div>
@@ -228,22 +321,24 @@
     </div>
 
     <!-- Delete User Modal -->
-    <div class="modal fade" id="deleteUserModal" tabindex="-1">
-        <div class="modal-dialog">
+    <div class="modal fade nv-modal" id="deleteUserModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Delete User</h5>
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle"></i> Delete User
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form asp-controller="Settings" asp-action="DeleteUser" method="post">
                     <div class="modal-body">
                         <input type="hidden" name="userId" id="deleteUserUserId"/>
                         <p>Are you sure you want to delete <strong id="deleteUserName"></strong>?</p>
-                        <p class="text-danger">This will permanently remove the account and all their data. This action cannot be undone.</p>
+                        <p class="text-muted small">This will permanently remove the account and all their data. This action cannot be undone.</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-danger">Delete User</button>
+                        <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-pill btn-pill-danger">Delete User</button>
                     </div>
                 </form>
             </div>
@@ -251,7 +346,7 @@
     </div>
 
     <script>
-        // Load users table when User Management tab is shown
+        // ── Users table loading ──────────────────────────
         document.querySelector('a[href="#users"]')?.addEventListener('shown.bs.tab', loadUsers);
 
         async function loadUsers() {
@@ -260,23 +355,37 @@
             const tbody = document.getElementById('usersTableBody');
             tbody.innerHTML = '';
 
+            const token = document.querySelector('input[name=__RequestVerificationToken]').value;
+
             users.forEach(user => {
+                const roleClass = user.role === 'Admin' ? 'role-admin' : 'role-user';
+                const statusClass = user.isLockedOut ? 'status-disabled' : 'status-active';
+                const statusText = user.isLockedOut ? 'Disabled' : 'Active';
+                const toggleAction = user.isLockedOut ? 'Enable' : 'Disable';
+                const toggleIcon = user.isLockedOut ? 'bi-check-lg' : 'bi-pause';
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${user.displayName}</td>
-                    <td>${user.email}</td>
-                    <td><span class="badge ${user.role === 'Admin' ? 'bg-primary' : 'bg-secondary'}">${user.role}</span></td>
+                    <td><strong>${escapeHtml(user.displayName)}</strong></td>
+                    <td>${escapeHtml(user.email)}</td>
+                    <td><span class="user-badge ${roleClass}">${user.role}</span></td>
                     <td>${formatLocalDate(user.createdAt)}</td>
-                    <td><span class="badge ${user.isLockedOut ? 'bg-danger' : 'bg-success'}">${user.isLockedOut ? 'Disabled' : 'Active'}</span></td>
+                    <td><span class="user-badge ${statusClass}">${statusText}</span></td>
                     <td>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-secondary" onclick="openResetPassword('${user.id}', '${user.displayName}')">Reset PW</button>
+                        <div class="user-actions">
+                            <button class="btn-mini" onclick="openResetPassword('${user.id}', '${escapeHtml(user.displayName)}')">
+                                <i class="bi bi-key"></i> Reset PW
+                            </button>
                             <form method="post" action="/Settings/ToggleUserStatus" class="d-inline">
-                                <input type="hidden" name="userId" value="${user.id}" />
-                                <input type="hidden" name="__RequestVerificationToken" value="${document.querySelector('input[name=__RequestVerificationToken]').value}" />
-                                <button type="submit" class="btn btn-outline-${user.isLockedOut ? 'success' : 'warning'}">${user.isLockedOut ? 'Enable' : 'Disable'}</button>
+                                <input type="hidden" name="userId" value="${user.id}"/>
+                                <input type="hidden" name="__RequestVerificationToken" value="${token}"/>
+                                <button type="submit" class="btn-mini">
+                                    <i class="bi ${toggleIcon}"></i> ${toggleAction}
+                                </button>
                             </form>
-                            <button class="btn btn-outline-danger" onclick="openDeleteUser('${user.id}', '${user.displayName}')">Delete</button>
+                            <button class="btn-mini btn-mini-danger" onclick="openDeleteUser('${user.id}', '${escapeHtml(user.displayName)}')">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
                         </div>
                     </td>
                 `;
@@ -298,40 +407,171 @@
 
         function formatLocalDate(utcString) {
             const date = new Date(utcString);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
+            return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
     </script>
-    //------ Open Registration: on-click apply --------
+
+    <!-- Open Registration toggle -->
     <script>
-    const openRegToggle = document.getElementById('openRegistration');
-    const openRegStatus = document.getElementById('openRegistrationStatus');
+        const openRegToggle = document.getElementById('openRegistration');
+        const openRegStatus = document.getElementById('openRegistrationStatus');
 
-    openRegToggle.addEventListener('change', async function() {
-        const formData = new FormData();
-        formData.append('isOpen', this.checked);
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        if (token) formData.append('__RequestVerificationToken', token);
+        openRegToggle.addEventListener('change', async function() {
+            const formData = new FormData();
+            formData.append('isOpen', this.checked);
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            if (token) formData.append('__RequestVerificationToken', token);
 
-        try {
-            const res = await fetch('/Settings/SetRegistrationOpen', { method: 'POST', body: formData });
-            const result = await res.json();
-            if (result.success) {
-                openRegStatus.textContent = 'Saved';
-                openRegStatus.className = 'small mt-1 text-success';
-                setTimeout(() => { openRegStatus.textContent = ''; }, 1500);
-            } else {
+            try {
+                const res = await fetch('/Settings/SetRegistrationOpen', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    openRegStatus.textContent = 'Saved';
+                    openRegStatus.className = 'save-status';
+                    setTimeout(() => { openRegStatus.textContent = ''; }, 1500);
+                } else {
+                    openRegStatus.textContent = 'Save failed';
+                    openRegStatus.className = 'save-status error';
+                    this.checked = !this.checked;
+                }
+            } catch {
                 openRegStatus.textContent = 'Save failed';
-                openRegStatus.className = 'small mt-1 text-danger';
-                this.checked = !this.checked; // revert
+                openRegStatus.className = 'save-status error';
+                this.checked = !this.checked;
             }
-        } catch {
-            openRegStatus.textContent = 'Save failed';
-            openRegStatus.className = 'small mt-1 text-danger';
-            this.checked = !this.checked;
-        }
-    });
-</script>
+        });
+    </script>
 }
+
+<!-- Password validation (works for all users) -->
+<script>
+(function() {
+    const pwNew = document.getElementById('pwNew');
+    const pwConfirm = document.getElementById('pwConfirm');
+    const pwCurrent = document.getElementById('pwCurrent');
+    const submitBtn = document.getElementById('changePwBtn');
+    const rules = document.querySelectorAll('.pw-rule');
+
+    if (!pwNew) return;
+
+    function evaluate() {
+        const newVal = pwNew.value;
+        const confirmVal = pwConfirm.value;
+
+        const checks = {
+            length: newVal.length >= 10,
+            lower: /[a-z]/.test(newVal),
+            upper: /[A-Z]/.test(newVal),
+            digit: /[0-9]/.test(newVal),
+            match: newVal.length > 0 && newVal === confirmVal
+        };
+
+        rules.forEach(rule => {
+            const key = rule.dataset.rule;
+            if (checks[key]) rule.classList.add('satisfied');
+            else rule.classList.remove('satisfied');
+        });
+
+        const allValid = checks.length && checks.lower && checks.upper && checks.digit && checks.match;
+        submitBtn.disabled = !(allValid && pwCurrent.value.length > 0);
+    }
+
+    [pwNew, pwConfirm, pwCurrent].forEach(el => el.addEventListener('input', evaluate));
+    evaluate();
+})();
+</script>
+
+<!-- Password validation (user creation) -->
+<script>
+    (function() {
+        const pwInput = document.getElementById('cuPassword');
+        const submitBtn = document.getElementById('cuSubmit');
+        if (!pwInput || !submitBtn) return;
+
+        const rules = document.querySelectorAll('#cuPwRules .pw-rule');
+
+        function evaluate() {
+            const val = pwInput.value;
+            const checks = {
+                length: val.length >= 10,
+                lower: /[a-z]/.test(val),
+                upper: /[A-Z]/.test(val),
+                digit: /[0-9]/.test(val)
+            };
+
+            rules.forEach(rule => {
+                const key = rule.dataset.rule;
+                if (checks[key]) rule.classList.add('satisfied');
+                else rule.classList.remove('satisfied');
+            });
+
+            submitBtn.disabled = !(checks.length && checks.lower && checks.upper && checks.digit);
+        }
+
+        pwInput.addEventListener('input', evaluate);
+        // Reset on modal close
+        document.getElementById('createUserModal').addEventListener('hidden.bs.modal', function() {
+            rules.forEach(r => r.classList.remove('satisfied'));
+            submitBtn.disabled = true;
+        });
+    })();
+</script>
+
+<!-- Password validation (reset password) -->
+<script>
+    (function() {
+        const pwInput = document.getElementById('rpPassword');
+        const submitBtn = document.getElementById('rpSubmit');
+        if (!pwInput || !submitBtn) return;
+
+        const rules = document.querySelectorAll('#rpPwRules .pw-rule');
+
+        function evaluate() {
+            const val = pwInput.value;
+            const checks = {
+                length: val.length >= 10,
+                lower: /[a-z]/.test(val),
+                upper: /[A-Z]/.test(val),
+                digit: /[0-9]/.test(val)
+            };
+
+            rules.forEach(rule => {
+                const key = rule.dataset.rule;
+                if (checks[key]) rule.classList.add('satisfied');
+                else rule.classList.remove('satisfied');
+            });
+
+            submitBtn.disabled = !(checks.length && checks.lower && checks.upper && checks.digit);
+        }
+
+        pwInput.addEventListener('input', evaluate);
+        document.getElementById('resetPasswordModal').addEventListener('hidden.bs.modal', function() {
+            pwInput.value = '';
+            rules.forEach(r => r.classList.remove('satisfied'));
+            submitBtn.disabled = true;
+        });
+    })();
+</script>
+<!-- Prevent initial page redirection -->
+<script>
+    (function() {
+        const hash = window.location.hash;
+        if (hash) {
+            const tabTrigger = document.querySelector(`[data-bs-toggle="list"][href="${hash}"]`);
+            if (tabTrigger) {
+                // Remove active from all tabs and panes
+                document.querySelectorAll('.nv-vtab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show', 'active'));
+                // Activate the matching tab and pane
+                tabTrigger.classList.add('active');
+                document.querySelector(hash)?.classList.add('show', 'active');
+                // Trigger the loadUsers if it's the users tab
+                if (hash === '#users') loadUsers();
+            }
+        }
+    })();
+</script>
