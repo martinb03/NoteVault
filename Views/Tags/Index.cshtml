@@ -13,98 +13,233 @@
 }
 
 <style>
-    .tag-row {
-        border-top: 4px solid transparent;
-        transition: background-color 0.15s;
+    .tags-page {
+        max-width: 1200px;
+        margin: 1rem auto;
+        padding: 0 1.5rem;
     }
-    .tag-row-link {
-        text-decoration: none;
-        color: inherit;
-        flex-grow: 1;
-        padding: 0.75rem 1rem;
+    .tags-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .tags-header-title {
         display: flex;
         align-items: center;
-        transition: background-color 0.15s;
+        gap: 1rem;
     }
-    .tag-row-link:hover {
-        background-color: #f8f9fa;
-        color: inherit;
+    .tags-header .accent-bar {
+        width: 4px;
+        height: 36px;
+        background: var(--brand-orange);
+        border-radius: var(--radius-pill);
     }
+    .tags-header h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-primary);
+    }
+
+    /* Tag chip grid */
+    .tag-chip-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.85rem;
+    }
+    @@media (max-width: 992px) {
+        .tag-chip-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @@media (max-width: 768px) {
+        .tag-chip-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @@media (max-width: 480px) {
+        .tag-chip-grid { grid-template-columns: 1fr; }
+    }
+
+    .tag-chip {
+        position: relative;
+        border-radius: var(--radius-pill);
+        border: 2px solid;
+        padding: 0.7rem 0.5rem 0.7rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background-color: var(--surface);
+        transition: transform 0.1s, box-shadow 0.15s;
+    }
+    .tag-chip:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-hover);
+    }
+    
+    .tag-chip:has(.dropdown.show),
+    .tag-chip:has([aria-expanded="true"]) {
+        z-index: 10;
+        position: relative;
+    }
+
+    /* Dropdown menu sits clearly above */
+    .tag-chip .dropdown-menu {
+        z-index: 20;
+    }
+
+    /* Disable chip hover transform while menu is open, so the chip doesn't shift under the menu */
+    .tag-chip:has(.dropdown.show):hover,
+    .tag-chip:has([aria-expanded="true"]):hover {
+        transform: none;
+    }
+    
+    .tag-chip-link {
+        flex-grow: 1;
+        text-decoration: none;
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 0.95rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .tag-chip-link:hover {
+        color: var(--text-primary);
+    }
+    .tag-menu-btn {
+        background: transparent;
+        border: 0;
+        color: var(--text-secondary);
+        padding: 0.25rem 0.4rem;
+        border-radius: 50%;
+        cursor: pointer;
+        line-height: 1;
+        flex-shrink: 0;
+        transition: background-color 0.15s, color 0.15s;
+    }
+    .tag-menu-btn:hover {
+        background-color: rgba(0, 0, 0, 0.06);
+        color: var(--text-primary);
+    }
+
+    /* Color swatch picker */
+    .color-swatches {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+    }
+    .color-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: transform 0.1s;
+        position: relative;
+    }
+    .color-swatch:hover {
+        transform: scale(1.1);
+    }
+    .color-swatch.selected {
+        outline: 3px solid var(--brand-orange);
+        outline-offset: 2px;
+    }
+
+    
 </style>
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">Tags</h4>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTagModal">New Tag</button>
+<div class="tags-page">
+
+    <div class="tags-header">
+        <div class="tags-header-title">
+            <div class="accent-bar"></div>
+            <h1>Tags</h1>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="inline-filter-wrap">
+                <i class="bi bi-search inline-filter-icon"></i>
+                <input type="text" id="tagFilter" class="inline-filter-input" placeholder="Filter tags..." autocomplete="off"/>
+            </div>
+            <button class="btn btn-pill btn-pill-primary" data-bs-toggle="modal" data-bs-target="#createTagModal">
+                <i class="bi bi-plus-lg"></i> New Tag
+            </button>
+        </div>
     </div>
 
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show">
-            @TempData["Success"]
+        <div class="nv-alert alert alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill alert-icon"></i>
+            <span>@TempData["Success"]</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show">
-            @TempData["Error"]
+        <div class="nv-alert alert alert-dismissible fade show" role="alert" style="border-color: var(--danger);">
+            <i class="bi bi-exclamation-circle-fill alert-icon" style="color: var(--danger);"></i>
+            <span>@TempData["Error"]</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
 
     @if (Model.Count == 0)
     {
-        <div class="text-center text-muted py-5">
-            <p class="mb-2">No tags yet.</p>
-            <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#createTagModal">Create your first tag</button>
+        <div class="empty-state">
+            <i class="bi bi-tags"></i>
+            <p>No tags yet.</p>
+            <button class="btn btn-pill btn-pill-outline mt-2" data-bs-toggle="modal" data-bs-target="#createTagModal">
+                Create your first tag
+            </button>
         </div>
     }
     else
     {
-        <div class="row g-3">
+        <div class="tag-chip-grid">
             @foreach (var tag in Model)
             {
-                <div class="col-md-6 col-lg-4">
-                    <div class="card tag-row" style="border-top-color: @(tag.Color ?? "#868E96");">
-                        <div class="d-flex align-items-center">
-                            <a asp-action="Details" asp-route-id="@tag.Id" class="tag-row-link">
-                                <strong>@tag.Name</strong>
-                                <span class="text-muted ms-auto">@tag.NoteCount @(tag.NoteCount == 1 ? "note" : "notes")</span>
-                            </a>
-                            <div class="dropdown me-2">
-                                <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
-                                    <span style="font-size: 1.2rem;">⋮</span>
+                var color = tag.Color ?? "#868E96";
+                <div class="tag-chip" style="border-color: @color; background-color: @(color)22;">
+                    <a asp-action="Details" asp-route-id="@tag.Id" class="tag-chip-link" title="@tag.Name">
+                        @tag.Name
+                    </a>
+                    <div class="dropdown">
+                        <button class="tag-menu-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end nv-dropdown">
+                            <li>
+                                <button class="dropdown-item nv-dropdown-item" data-bs-toggle="modal" data-bs-target="#editTagModal"
+                                        onclick="setEditTag(@tag.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(tag.Name).Trim('"'))', '@(tag.Color ?? "")')">
+                                    <i class="bi bi-pencil"></i> Edit
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editTagModal"
-                                                onclick="setEditTag(@tag.Id, '@tag.Name', '@(tag.Color ?? "")')">Edit</button>
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteTagModal"
-                                                onclick="setDeleteTag(@tag.Id, '@tag.Name', @tag.NoteCount)">Delete</button>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
+                            </li>
+                            <li>
+                                <button class="dropdown-item nv-dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteTagModal"
+                                        onclick="setDeleteTag(@tag.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(tag.Name).Trim('"'))', @tag.NoteCount)">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             }
+        </div>
+        <div class="empty-state" id="noTagMatches" style="display: none;">
+            <i class="bi bi-search"></i>
+            <p>No tags match your search.</p>
         </div>
     }
 </div>
 
 <!-- Create Tag Modal -->
-<div class="modal fade" id="createTagModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade nv-modal" id="createTagModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">New Tag</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-tag"></i> New Tag
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-action="Create" method="post">
+            <form asp-action="Create" method="post" class="nv-form">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Name</label>
@@ -112,11 +247,10 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Color</label>
-                        <div class="d-flex gap-2 flex-wrap">
+                        <div class="color-swatches">
                             @foreach (var color in swatchColors)
                             {
-                                <label class="d-flex align-items-center justify-content-center"
-                                       style="width:32px; height:32px; border-radius:50%; background:@color; cursor:pointer;">
+                                <label class="color-swatch" style="background: @color;">
                                     <input type="radio" name="Color" value="@color" class="d-none"/>
                                 </label>
                             }
@@ -124,8 +258,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pill btn-pill-primary">Create</button>
                 </div>
             </form>
         </div>
@@ -133,14 +267,16 @@
 </div>
 
 <!-- Edit Tag Modal -->
-<div class="modal fade" id="editTagModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade nv-modal" id="editTagModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Tag</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> Edit Tag
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-action="Edit" method="post">
+            <form asp-action="Edit" method="post" class="nv-form">
                 <input type="hidden" name="Id" id="editTagId"/>
                 <div class="modal-body">
                     <div class="mb-3">
@@ -149,11 +285,10 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Color</label>
-                        <div class="d-flex gap-2 flex-wrap">
+                        <div class="color-swatches">
                             @foreach (var color in swatchColors)
                             {
-                                <label class="d-flex align-items-center justify-content-center"
-                                       style="width:32px; height:32px; border-radius:50%; background:@color; cursor:pointer;">
+                                <label class="color-swatch" style="background: @color;">
                                     <input type="radio" name="Color" value="@color" class="d-none"/>
                                 </label>
                             }
@@ -161,8 +296,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pill btn-pill-primary">Save</button>
                 </div>
             </form>
         </div>
@@ -170,23 +305,25 @@
 </div>
 
 <!-- Delete Tag Modal -->
-<div class="modal fade" id="deleteTagModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade nv-modal" id="deleteTagModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete Tag</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Delete Tag
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <p>Are you sure you want to delete <strong id="deleteTagName"></strong>?</p>
-                <p class="text-muted" id="deleteTagInfo"></p>
-                <p class="text-muted">The notes themselves will not be affected.</p>
+                <p id="deleteTagInfo" class="text-muted small"></p>
+                <p class="text-muted small">The notes themselves will not be affected.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
                 <form asp-action="Delete" method="post">
                     <input type="hidden" name="id" id="deleteTagId"/>
-                    <button type="submit" class="btn btn-danger">Delete</button>
+                    <button type="submit" class="btn btn-pill btn-pill-danger">Delete</button>
                 </form>
             </div>
         </div>
@@ -197,9 +334,11 @@
     function setEditTag(id, name, color) {
         document.getElementById('editTagId').value = id;
         document.getElementById('editTagName').value = name;
+
         document.querySelectorAll('#editTagModal input[name="Color"]').forEach(input => {
-            input.checked = (input.value === color);
-            input.closest('label').style.outline = (input.value === color) ? '3px solid #FF8C42' : '';
+            const isSelected = (input.value === color);
+            input.checked = isSelected;
+            input.closest('.color-swatch').classList.toggle('selected', isSelected);
         });
     }
 
@@ -214,11 +353,39 @@
         }
     }
 
+    // Swatch selection visual feedback
     document.querySelectorAll('input[name="Color"]').forEach(input => {
         input.addEventListener('change', function() {
             this.closest('.modal').querySelectorAll('input[name="Color"]').forEach(other => {
-                other.closest('label').style.outline = (other === this) ? '3px solid #FF8C42' : '';
+                other.closest('.color-swatch').classList.toggle('selected', other === this);
             });
         });
     });
+
+    // Reset Create modal on close
+    document.getElementById('createTagModal').addEventListener('hidden.bs.modal', function() {
+        this.querySelector('form').reset();
+        this.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    });
+
+    const filterInput = document.getElementById('tagFilter');
+    const noMatchesEl = document.getElementById('noTagMatches');
+    const tagGrid = document.querySelector('.tag-chip-grid');
+
+    if (filterInput && tagGrid) {
+        filterInput.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            const chips = tagGrid.querySelectorAll('.tag-chip');
+            let visibleCount = 0;
+
+            chips.forEach(chip => {
+                const name = chip.querySelector('.tag-chip-link').textContent.trim().toLowerCase();
+                const match = name.includes(query);
+                chip.style.display = match ? '' : 'none';
+                if (match) visibleCount++;
+            });
+
+            noMatchesEl.style.display = visibleCount === 0 && chips.length > 0 ? 'block' : 'none';
+        });
+    }
 </script>
