@@ -2,25 +2,30 @@
 @{
     var items = ViewData["Breadcrumb"] as List<BreadcrumbItem> ?? new List<BreadcrumbItem>();
 }
-
 @if (items.Any())
 {
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb mb-0">
+    <nav class="nv-breadcrumb-wrap" aria-label="breadcrumb">
+        <div class="nv-breadcrumb">
             @for (int i = 0; i < items.Count; i++)
             {
                 var item = items[i];
                 var isLast = i == items.Count - 1;
+                var displayText = item.Text.Length > 30 ? item.Text.Substring(0, 30) + "…" : item.Text;
 
-                if (isLast)
+                if (isLast || string.IsNullOrEmpty(item.Url))
                 {
-                    <li class="breadcrumb-item active" aria-current="page">@item.Text</li>
+                    <span class="nv-crumb current" title="@item.Text">@displayText</span>
                 }
                 else
                 {
-                    <li class="breadcrumb-item"><a href="@item.Url" class="text-decoration-none">@item.Text</a></li>
+                    <a href="@item.Url" class="nv-crumb" title="@item.Text">@displayText</a>
+                }
+
+                if (!isLast)
+                {
+                    <i class="bi bi-caret-right-fill nv-crumb-sep"></i>
                 }
             }
-        </ol>
+        </div>
     </nav>
 }
