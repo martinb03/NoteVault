@@ -1,0 +1,164 @@
+@using NoteVault.ViewModels
+
+@{
+    var pile = (PileDetailViewModel)ViewData["Pile"]!;
+    var isPinned = (bool)ViewData["IsPinned"]!;
+    var activeManagePileId = (int?)ViewData["ActiveManagePileId"];
+    var activeReorderNotesPileId = (int?)ViewData["ActiveReorderNotesPileId"];
+    var manageMode = (bool)ViewData["ManageMode"]!;
+    var reorderMode = (bool)ViewData["ReorderMode"]!;
+    var anyModeActive = (bool)ViewData["AnyModeActive"]!;
+    var notesInActivePile = (HashSet<int>)ViewData["NotesInActivePile"]!;
+
+    var isActiveForManage = activeManagePileId == pile.Id;
+    var isActiveForReorderNotes = activeReorderNotesPileId == pile.Id;
+    var expanded = isActiveForManage || isActiveForReorderNotes;
+    var canExpand = !reorderMode && (!activeReorderNotesPileId.HasValue || isActiveForReorderNotes);
+    var showMenu = !anyModeActive;
+
+    var leftBorderStyle = pile.Color != null ? $"border-left: 4px solid {pile.Color};" : "";
+}
+
+<div class="trash-row pile-row p-0" data-pile-id="@pile.Id" style="@leftBorderStyle">
+    <div class="d-flex align-items-stretch w-100">
+
+        @if (reorderMode)
+        {
+            <div class="reorder-arrows">
+                <button type="button" class="pile-reorder-up"><i class="bi bi-caret-up-fill"></i></button>
+                <button type="button" class="pile-reorder-down"><i class="bi bi-caret-down-fill"></i></button>
+            </div>
+        }
+
+        <button type="button" class="pile-header"
+                data-bs-toggle="@(canExpand ? "collapse" : "")"
+                data-bs-target="#pile-@pile.Id"
+                aria-expanded="@(expanded.ToString().ToLower())"
+                disabled="@(!canExpand)">
+            <i class="bi bi-chevron-right pile-chevron" style="@(canExpand ? "" : "visibility: hidden;")"></i>
+            @if (isPinned)
+            {
+                <i class="bi bi-pin-fill pile-icon"></i>
+            }
+            else if (!string.IsNullOrEmpty(pile.Icon))
+            {
+                <i class="bi @pile.Icon pile-icon"></i>
+            }
+            else
+            {
+                <i class="bi bi-collection pile-icon"></i>
+            }
+            <span class="pile-name">@pile.Name</span>
+            <span class="pile-count">@pile.Notes.Count @(pile.Notes.Count == 1 ? "note" : "notes")</span>
+        </button>
+
+        @if (showMenu)
+        {
+            <div class="dropdown">
+                <button class="pile-menu-btn" data-bs-toggle="dropdown" data-bs-strategy="fixed" aria-expanded="false">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end nv-dropdown">
+                    <li>
+                        <a class="dropdown-item nv-dropdown-item"
+                           href="?manageNotes=@pile.Id">
+                            <i class="bi bi-check2-square"></i> Manage notes
+                        </a>
+                    </li>
+                    @if (pile.Notes.Any())
+                    {
+                        <li>
+                            <a class="dropdown-item nv-dropdown-item"
+                               href="?reorderNotesInPile=@pile.Id">
+                                <i class="bi bi-arrow-down-up"></i> Reorder notes
+                            </a>
+                        </li>
+                    }
+                    <li>
+                        <form asp-controller="Piles" asp-action="TogglePin" method="post" class="m-0">
+                            <input type="hidden" name="id" value="@pile.Id"/>
+                            <button type="submit" class="dropdown-item nv-dropdown-item">
+                                <i class="bi @(pile.IsPinned ? "bi-pin-angle" : "bi-pin")"></i>
+                                @(pile.IsPinned ? "Unpin" : "Pin")
+                            </button>
+                        </form>
+                    </li>
+                    <li>
+                        <button class="dropdown-item nv-dropdown-item" data-bs-toggle="modal" data-bs-target="#editPileModal"
+                                onclick="setEditPile(@pile.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(pile.Name).Trim('"'))', '@(pile.Color ?? "")', '@(pile.Icon ?? "")')">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </li>
+                    <li>
+                        <a class="dropdown-item nv-dropdown-item" asp-controller="Piles" asp-action="Export" asp-route-id="@pile.Id">
+                            <i class="bi bi-download"></i> Export
+                        </a>
+                    </li>
+                    <li>
+                        <button class="dropdown-item nv-dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deletePileModal"
+                                onclick="setDeletePile(@pile.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(pile.Name).Trim('"'))')">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        }
+    </div>
+
+    <div class="collapse @(expanded ? "show" : "")" id="pile-@pile.Id">
+        <div class="pile-contents">
+            @if (pile.Notes.Any())
+            {
+                <div id="pile-notes-@pile.Id">
+                @foreach (var note in pile.Notes)
+                {
+                    if (manageMode && isActiveForManage)
+                    {
+                        <div class="trash-row">
+                            <input type="checkbox" name="NoteIds" value="@note.Id" form="manageNotesForm"
+                                   class="form-check-input" checked/>
+                            <i class="bi bi-journal-text row-icon"></i>
+                            <span class="row-title">@note.Title</span>
+                            @await Html.PartialAsync("_NoteTagsInline", note.Tags)
+                            <span class="row-meta ms-auto">
+                                <partial name="_LocalDate" model="note.UpdatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                            </span>
+                        </div>
+                    }
+                    else if (isActiveForReorderNotes)
+                    {
+                        <div class="trash-row" data-note-id="@note.Id">
+                            <div class="reorder-arrows" style="margin-left: 0; margin-right: 0.5rem;">
+                                <button type="button" class="reorder-up"><i class="bi bi-caret-up-fill"></i></button>
+                                <button type="button" class="reorder-down"><i class="bi bi-caret-down-fill"></i></button>
+                            </div>
+                            <i class="bi bi-journal-text row-icon"></i>
+                            <span class="row-title">@note.Title</span>
+                            @await Html.PartialAsync("_NoteTagsInline", note.Tags)
+                            <span class="row-meta ms-auto">
+                                <partial name="_LocalDate" model="note.UpdatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <a asp-controller="Notes" asp-action="Details" asp-route-id="@note.Id"
+                           class="trash-row text-decoration-none" data-note-id="@note.Id">
+                            <i class="bi bi-journal-text row-icon"></i>
+                            <span class="row-title">@note.Title</span>
+                            @await Html.PartialAsync("_NoteTagsInline", note.Tags)
+                            <span class="row-meta ms-auto">
+                                <partial name="_LocalDate" model="note.UpdatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                            </span>
+                        </a>
+                    }
+                }
+            </div>
+            }
+            else
+            {
+                <p class="text-muted small mb-0">No notes in this pile yet.</p>
+            }
+        </div>
+    </div>
+</div>

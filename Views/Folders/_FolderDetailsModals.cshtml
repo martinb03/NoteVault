@@ -1,0 +1,217 @@
+@{
+    var folderId = (int)ViewData["FolderId"]!;
+    var folderName = (string)ViewData["FolderName"]!;
+    var folderDescription = (string?)ViewData["FolderDescription"];
+    var swatchColors = (string[])ViewData["SwatchColors"]!;
+    var swatchIcons = (string[])ViewData["SwatchIcons"]!;
+}
+
+<!-- Create Note Modal -->
+<div class="modal fade nv-modal" id="createNoteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-journal-plus"></i> New Note
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Notes" asp-action="Create" method="post" class="nv-form">
+                <input type="hidden" name="FolderId" value="@folderId"/>
+                <input type="hidden" name="returnUrl" value="@Url.Action("Details", "Folders", new { id = folderId })"/>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" name="Title" class="form-control" required autofocus/>
+                    </div>
+                    <p class="text-muted small mb-0">This note will be added to <strong>@folderName</strong>.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pill btn-pill-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Pile Modal -->
+<div class="modal fade nv-modal" id="createPileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-collection"></i> New Pile
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Piles" asp-action="Create" method="post" class="nv-form">
+                <input type="hidden" name="FolderId" value="@folderId"/>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="Name" class="form-control" required autofocus/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color</label>
+                        <div class="pile-color-swatches">
+                            @foreach (var color in swatchColors)
+                            {
+                                <label class="pile-color-swatch" style="background: @color;">
+                                    <input type="radio" name="Color" value="@color" class="d-none"/>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icon</label>
+                        <div class="pile-icon-grid">
+                            @foreach (var icon in swatchIcons)
+                            {
+                                <label class="pile-icon-option">
+                                    <input type="radio" name="Icon" value="@icon" class="d-none"/>
+                                    <i class="bi @icon"></i>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pill btn-pill-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Pile Modal -->
+<div class="modal fade nv-modal" id="editPileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> Edit Pile
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Piles" asp-action="Edit" method="post" class="nv-form">
+                <input type="hidden" name="Id" id="editPileId"/>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="Name" id="editPileName" class="form-control" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Color</label>
+                        <div class="pile-color-swatches">
+                            @foreach (var color in swatchColors)
+                            {
+                                <label class="pile-color-swatch" style="background: @color;">
+                                    <input type="radio" name="Color" value="@color" class="d-none"/>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icon</label>
+                        <div class="pile-icon-grid">
+                            @foreach (var icon in swatchIcons)
+                            {
+                                <label class="pile-icon-option">
+                                    <input type="radio" name="Icon" value="@icon" class="d-none"/>
+                                    <i class="bi @icon"></i>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pill btn-pill-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Folder Modal -->
+<div class="modal fade nv-modal" id="editFolderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> Edit Folder
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Folders" asp-action="Edit" method="post" class="nv-form">
+                <input type="hidden" name="Id" value="@folderId"/>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="Name" class="form-control" value="@folderName" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description <span class="text-muted" style="font-weight: normal; text-transform: none; letter-spacing: 0;">(optional)</span></label>
+                        <textarea name="Description" class="form-control" rows="3" maxlength="500">@folderDescription</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pill btn-pill-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Pile Modal -->
+<div class="modal fade nv-modal" id="deletePileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Delete Pile
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deletePileName"></strong>?</p>
+                <p class="text-muted small">Notes inside this pile will remain in the folder.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                <form asp-controller="Piles" asp-action="Delete" method="post">
+                    <input type="hidden" name="id" id="deletePileId"/>
+                    <button type="submit" class="btn btn-pill btn-pill-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Folder Modal -->
+<div class="modal fade nv-modal" id="deleteFolderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Delete Folder
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This will move all contents of <strong>@folderName</strong> to the trash.</p>
+                <p class="text-muted small">Make sure to move or export any notes or piles you might need.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                <form asp-controller="Folders" asp-action="Delete" method="post">
+                    <input type="hidden" name="id" value="@folderId"/>
+                    <button type="submit" class="btn btn-pill btn-pill-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

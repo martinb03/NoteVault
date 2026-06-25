@@ -51,11 +51,7 @@ public class FoldersController : Controller
         return View(folders);
     }
     
-    [HttpGet]
-    public IActionResult Create()
-    {
-        return View(new CreateFolderViewModel());
-    }
+    
     
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -89,25 +85,7 @@ public class FoldersController : Controller
         return RedirectToAction("Index");
     }
     
-    [HttpGet]
-    public async Task<IActionResult> Edit(int id)
-    {
-        var userId = _userManager.GetUserId(User);
- 
-        var folder = await _context.Folders
-            .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
- 
-        if (folder == null) return NotFound();
- 
-        var model = new EditFolderViewModel
-        {
-            Id = folder.Id,
-            Name = folder.Name,
-            Description = folder.Description
-        };
- 
-        return View(model);
-    }
+    
     
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -209,6 +187,7 @@ public class FoldersController : Controller
                     Id = pn.NoteId,
                     Title = pn.Note.Title,
                     SortOrder = pn.SortOrder,
+                    UpdatedAt = pn.Note.UpdatedAt,
                     Tags = pn.Note.NoteTags
                         .Select(nt => new TagListViewModel
                         {

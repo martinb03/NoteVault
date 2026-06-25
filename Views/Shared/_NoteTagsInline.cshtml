@@ -1,0 +1,15 @@
+@model List<NoteVault.ViewModels.TagListViewModel>
+
+@if (Model != null && Model.Any())
+{
+    <span class="d-inline-flex align-items-center gap-1 flex-wrap me-2">
+        @foreach (var tag in Model.Take(3))
+        {
+            <span class="note-tag-badge" style="border-color: @(tag.Color ?? "#868E96"); background-color: @((tag.Color ?? "#868E96") + "33"); margin-left: 0;">@tag.Name</span>
+        }
+        @if (Model.Count > 3)
+        {
+            <span class="note-tag-badge note-tag-more" style="margin-left: 0;">+@(Model.Count - 3) more</span>
+        }
+    </span>
+}
