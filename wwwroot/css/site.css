@@ -240,11 +240,16 @@ body {
   background-color: var(--surface-warm);
   border-bottom: 1px solid var(--border-warm);
   padding: 0.65rem 0;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 1100;
 }
 .nv-navbar .container-fluid {
-  position: relative;
+  position: sticky;
+  top: 0;
 }
 
 .nv-brand {

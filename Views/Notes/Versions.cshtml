@@ -4,71 +4,259 @@
 @{
     ViewData["Title"] = "Versions";
     Layout = "_Layout";
-}
 
-<div class="container mt-4">
-    @{
-        var fromNotes = Context.Request.Query["from"] == "notes";
-        var crumbs = new List<BreadcrumbItem>();
-    
-        if (!fromNotes && Model.FolderId != null)
-        {
-            crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
-            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
-        }
-        else
-        {
-            crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
-        }
-        crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
-        crumbs.Add(new("Versions"));
-        ViewData["Breadcrumb"] = crumbs;
-    }
-    <partial name="_Breadcrumb"/>
-    
-    <h4 class="mb-1">Versions</h4>
-    <p class="text-muted mb-4">Version history for "@Model.NoteTitle"</p>
+    var fromNotes = Context.Request.Query["from"] == "notes";
+    var fromParam = Context.Request.Query["from"].ToString();
+    var crumbs = new List<BreadcrumbItem>();
 
-    @if (TempData["Success"] != null)
+    if (!fromNotes && Model.FolderId != null)
     {
-        <div class="alert alert-success alert-dismissible fade show">
-            @TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    @if (Model.Versions.Count == 0)
-    {
-        <div class="text-center text-muted py-5">
-            <p>No versions saved yet.</p>
-            <p>Open the note editor and click "Save Version" to create one.</p>
-        </div>
+        crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
+        crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
     }
     else
     {
-        <div class="card">
-            <div class="list-group list-group-flush">
-                @foreach (var version in Model.Versions)
-                {
-                    <a asp-action="VersionDetails" asp-route-id="@version.Id" asp-route-from="@Context.Request.Query["from"]" class="list-group-item list-group-item-action d-flex align-items-center py-3 text-decoration-none">
-                        <span class="me-3" style="font-size: 1.1rem;">🕒</span>
-                        <div style="flex: 3;">
-                            @if (!string.IsNullOrEmpty(version.Name))
-                            {
-                                <strong class="text-dark">@version.Name ·</strong>
-                                <small class="text-muted">Version @version.VersionNumber</small>
-                            }
-                            else
-                            {
-                                <strong class="text-dark">Version @version.VersionNumber</strong>
-                            }
-                        </div>
-                        <span class="text-muted text-end" style="flex: 1; padding-right: 15px;">
-                            <partial name="_LocalDate" model="version.CreatedAt"/>
-                        </span>
-                    </a>
-                }
-            </div>
-        </div>
+        crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
     }
+    crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
+    crumbs.Add(new("Versions"));
+    ViewData["Breadcrumb"] = crumbs;
+}
+
+<partial name="_Breadcrumb"/>
+
+<div class="versions-page">
+    <div class="versions-cols">
+
+        <!-- ═══════ Left Sidebar: Filters ═══════ -->
+        <aside class="versions-sidebar">
+            <div class="soft-card">
+                <div class="filter-section">
+                    <div class="inline-filter-wrap" style="width: 100%;">
+                        <i class="bi bi-search inline-filter-icon"></i>
+                        <input type="text" id="versionFilter" class="inline-filter-input" placeholder="Filter versions..." autocomplete="off" style="width: 100%;"/>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-label">
+                        <i class="bi bi-calendar"></i> Date Created
+                    </div>
+                    <input type="date" id="dateFromFilter" class="form-control mb-2" placeholder="From"/>
+                    <input type="date" id="dateToFilter" class="form-control" placeholder="To"/>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ═══════ Right: Results ═══════ -->
+        <main class="versions-main">
+            <div class="versions-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="accent-bar"></div>
+                    <div>
+                        <h1>Versions</h1>
+                        <p class="versions-subtitle">Version history for <strong>@Model.NoteTitle</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="nv-alert alert alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill alert-icon"></i>
+                    <span>@TempData["Success"]</span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            @if (Model.Versions.Count == 0)
+            {
+                <div class="empty-state">
+                    <i class="bi bi-clock-history"></i>
+                    <p>No versions saved yet.</p>
+                    <p style="font-size: 0.85rem; opacity: 0.8;">Open the note editor and click "Save Version" to create one.</p>
+                </div>
+            }
+            else
+            {
+                <div class="versions-count" id="versionsCount">
+                    @Model.Versions.Count @(Model.Versions.Count == 1 ? "version" : "versions")
+                </div>
+
+                <div class="trash-list" id="versionsList">
+                    @foreach (var version in Model.Versions)
+                    {
+                        <a asp-action="VersionDetails" asp-route-id="@version.Id" asp-route-from="@fromParam"
+                           class="trash-row text-decoration-none version-row"
+                           data-name="@(version.Name ?? "")"
+                           data-version-number="@version.VersionNumber"
+                           data-created="@version.CreatedAt.ToString("yyyy-MM-dd")">
+                            <i class="bi bi-clock-history row-icon"></i>
+                            <span class="row-title">
+                                @if (!string.IsNullOrEmpty(version.Name))
+                                {
+                                    @version.Name
+                                    <span class="version-meta-inline">· Version @version.VersionNumber</span>
+                                }
+                                else
+                                {
+                                    <text>Version @version.VersionNumber</text>
+                                }
+                            </span>
+                            <span class="row-meta ms-auto">
+                                <partial name="_LocalDate" model="version.CreatedAt"/>
+                            </span>
+                        </a>
+                    }
+                </div>
+
+                <div class="empty-state" id="noVersionMatches" style="display: none;">
+                    <i class="bi bi-search"></i>
+                    <p>No versions match your filters.</p>
+                </div>
+            }
+        </main>
+    </div>
 </div>
+
+<style>
+    .versions-page {
+        max-width: 1300px;
+        margin: 0 auto 2rem auto;
+        padding: 0 1.5rem;
+    }
+    .versions-cols {
+        display: flex;
+        gap: 1.5rem;
+        align-items: flex-start;
+    }
+    .versions-sidebar { flex: 0 0 280px; position: sticky; top: 80px; }
+    .versions-main { flex: 1; min-width: 0; }
+
+    .versions-header {
+        margin-bottom: 1.5rem;
+    }
+    .versions-header .accent-bar {
+        width: 4px;
+        height: 44px;
+        background: var(--brand-orange);
+        border-radius: var(--radius-pill);
+    }
+    .versions-header h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    .versions-subtitle {
+        margin: 0.15rem 0 0 0;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .versions-count {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.75rem;
+    }
+
+    /* Filter sections in sidebar */
+    .filter-section { padding: 0.5rem 0; }
+    .filter-section + .filter-section {
+        border-top: 1px solid var(--border-soft);
+        margin-top: 0.5rem;
+        padding-top: 1rem;
+    }
+    .filter-label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 0.6rem;
+    }
+    .filter-label i {
+        color: var(--brand-orange);
+        font-size: 0.9rem;
+    }
+
+    .filter-section .form-control {
+        background: var(--surface);
+        border: 1.5px solid var(--border-warm);
+        border-radius: 8px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .filter-section .form-control:focus {
+        border-color: var(--brand-orange);
+        box-shadow: 0 0 0 3px rgba(var(--brand-orange-rgb), 0.15);
+        outline: none;
+    }
+
+    .version-meta-inline {
+        font-weight: normal;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin-left: 0.25rem;
+    }
+
+    @@media (max-width: 992px) {
+        .versions-cols { flex-direction: column; }
+        .versions-sidebar { flex: 1 1 100%; width: 100%; position: static; }
+    }
+</style>
+
+<script>
+    (function() {
+        const nameFilter = document.getElementById('versionFilter');
+        const dateFrom = document.getElementById('dateFromFilter');
+        const dateTo = document.getElementById('dateToFilter');
+        const versionsList = document.getElementById('versionsList');
+        const noMatchesEl = document.getElementById('noVersionMatches');
+        const countEl = document.getElementById('versionsCount');
+        if (!versionsList) return;
+
+        function applyFilters() {
+            const nameQuery = nameFilter.value.trim().toLowerCase();
+            const from = dateFrom.value;
+            const to = dateTo.value;
+
+            const rows = versionsList.querySelectorAll('.version-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const name = (row.dataset.name || '').toLowerCase();
+                const versionNumber = row.dataset.versionNumber || '';
+                const created = row.dataset.created || '';
+
+                // Name/number match
+                const nameMatch = !nameQuery
+                    || name.includes(nameQuery)
+                    || ('version ' + versionNumber).includes(nameQuery)
+                    || versionNumber === nameQuery;
+
+                // Date range match (string comparison works because YYYY-MM-DD sorts lexically)
+                const dateMatch = (!from || created >= from) && (!to || created <= to);
+
+                const show = nameMatch && dateMatch;
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
+            });
+
+            versionsList.style.display = visibleCount === 0 ? 'none' : '';
+            noMatchesEl.style.display = visibleCount === 0 && rows.length > 0 ? 'block' : 'none';
+
+            countEl.textContent = `${visibleCount} ${visibleCount === 1 ? 'version' : 'versions'}`;
+        }
+
+        nameFilter.addEventListener('input', applyFilters);
+        dateFrom.addEventListener('change', applyFilters);
+        dateTo.addEventListener('change', applyFilters);
+    })();
+</script>
