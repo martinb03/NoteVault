@@ -1286,3 +1286,233 @@ a.nv-crumb:hover {
 .inline-filter-input::placeholder {
   color: var(--text-muted);
 }
+
+
+/* ======== DARK MODE OVERRIDES ======== */
+
+[data-theme="dark"] {
+  /* Surfaces & backgrounds */
+  --page-bg: #1a1816;
+  --surface: #252220;
+  --surface-subtle: #2a2724;
+  --surface-warm: #2f2b27;
+  --hover-surface: #2c2925;
+
+  /* Text */
+  --text-primary: #e8e6e3;
+  --text-medium: #c5c2bd;
+  --text-secondary: #a8a5a0;
+  --text-muted: #7a7773;
+  --text-on-brand: #fff;
+
+  /* Borders */
+  --border-soft: #3a3733;
+  --border-warm: #454039;
+
+  /* Hover states */
+  --hover-warm: rgba(234, 114, 50, 0.12);
+
+  /* Status colors (slightly adjusted for dark) */
+  --danger: #e25563;
+  --danger-hover: #d63d4a;
+  --danger-bg: #3a1f22;
+  --success: #3aa970;
+  --success-bg: #1f3a2b;
+  --warning-text: #ec9a4f;
+
+  /* Chip / folder accents */
+  --folder-chip-bg: #3d3424;
+
+  /* Shadows - softer on dark since heavy shadows disappear */
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-dropdown: 0 6px 20px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.7);
+}
+
+/* ======== Body background ======== */
+[data-theme="dark"] body {
+  background-color: var(--page-bg);
+  color: var(--text-primary);
+}
+
+/* ======== Bootstrap form controls baseline ======== */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .nv-form .form-control,
+[data-theme="dark"] .nv-form .form-select,
+[data-theme="dark"] .filter-section .form-control {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border-warm);
+}
+[data-theme="dark"] .form-control::placeholder,
+[data-theme="dark"] .form-select::placeholder {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--brand-orange);
+}
+
+/* Form checkbox / switch */
+[data-theme="dark"] .form-check-input {
+  background-color: var(--surface);
+  border-color: var(--border-warm);
+}
+[data-theme="dark"] .form-check-input:checked {
+  background-color: var(--brand-orange);
+  border-color: var(--brand-orange);
+}
+
+/* Date input picker icon */
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  opacity: 0.7;
+}
+
+/* ======== Bootstrap utility text classes ======== */
+[data-theme="dark"] .text-muted {
+  color: var(--text-secondary) !important;
+}
+[data-theme="dark"] .text-dark {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .text-danger {
+  color: var(--danger) !important;
+}
+
+/* ======== Modals (Bootstrap defaults) ======== */
+[data-theme="dark"] .modal-content {
+  background-color: var(--surface);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .modal-header {
+  border-bottom-color: var(--border-soft);
+}
+[data-theme="dark"] .modal-footer {
+  border-top-color: var(--border-soft);
+}
+[data-theme="dark"] .btn-close {
+  filter: invert(0.9);
+}
+
+/* ======== Dropdowns ======== */
+[data-theme="dark"] .dropdown-menu {
+  background-color: var(--surface);
+  border-color: var(--border-warm);
+}
+[data-theme="dark"] .dropdown-item {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+  background-color: var(--hover-warm);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .dropdown-divider {
+  border-top-color: var(--border-soft);
+}
+
+/* ======== Bootstrap alerts (in case any survived migration) ======== */
+[data-theme="dark"] .alert {
+  background-color: var(--surface);
+  color: var(--text-primary);
+}
+
+/* ======== Btn-pill outline button — adjust for dark ======== */
+[data-theme="dark"] .btn-pill-outline {
+  color: var(--text-medium);
+  border-color: var(--border-warm);
+}
+[data-theme="dark"] .btn-pill-outline:hover {
+  background-color: var(--hover-warm);
+  color: var(--brand-orange);
+  border-color: var(--brand-orange);
+}
+
+/* ======== Quill editor ======== */
+[data-theme="dark"] .ql-toolbar.ql-snow {
+  background-color: var(--surface-warm);
+  border-bottom-color: var(--border-soft) !important;
+}
+[data-theme="dark"] .ql-container.ql-snow {
+  background-color: var(--surface);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .ql-editor {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .ql-editor.ql-blank::before {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .ql-snow .ql-stroke {
+  stroke: var(--text-medium);
+}
+[data-theme="dark"] .ql-snow .ql-fill {
+  fill: var(--text-medium);
+}
+[data-theme="dark"] .ql-snow .ql-picker-label,
+[data-theme="dark"] .ql-snow .ql-picker {
+  color: var(--text-medium);
+}
+[data-theme="dark"] .ql-snow .ql-picker-options {
+  background-color: var(--surface);
+  border-color: var(--border-warm) !important;
+}
+[data-theme="dark"] .ql-snow .ql-tooltip {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border-warm);
+  box-shadow: var(--shadow-dropdown);
+}
+[data-theme="dark"] .ql-snow .ql-tooltip input[type=text] {
+  background-color: var(--surface-warm);
+  color: var(--text-primary);
+  border-color: var(--border-warm);
+}
+
+/* ======== Trash row & list group hover (Bootstrap default) ======== */
+[data-theme="dark"] .list-group-item {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border-soft);
+}
+[data-theme="dark"] .list-group-item-action:hover,
+[data-theme="dark"] .list-group-item-action:focus {
+  background-color: var(--hover-warm);
+  color: var(--text-primary);
+}
+
+/* ======== Empty state icon — slightly less opaque on dark ======== */
+[data-theme="dark"] .empty-state i {
+  opacity: 0.5;
+}
+/* ======= Auth navbar theme toggle ======= */
+.auth-theme-toggle {
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1.5px solid var(--border-warm);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.auth-theme-toggle:hover {
+  color: var(--brand-orange);
+  border-color: var(--brand-orange);
+  background-color: var(--hover-warm);
+}
+.auth-theme-toggle i {
+  font-size: 1rem;
+}

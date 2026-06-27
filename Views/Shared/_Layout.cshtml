@@ -8,6 +8,13 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/NoteVault.styles.css" asp-append-version="true"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <script>
+    // Apply theme
+    (function() {
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+</script>
 </head>
 
 <style>
@@ -32,38 +39,13 @@
         border-color: #FFC107;
         color: #856404;
     }
-    .filter-tag-chip {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1.5px solid;
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        color: #333;
-    }
     .filter-tag-chip.selected {
         outline: 2px solid var(--brand-orange);
         outline-offset: 1px;
     }
-    .search-result-item {
-        padding: 10px 14px;
-        border-bottom: 1px solid #eee;
-        cursor: pointer;
-        text-decoration: none;
-        color: inherit;
-        display: block;
-        transition: background-color 0.15s;
-    }
-    .search-result-item:hover { background-color: #f8f9fa; color: inherit; }
+    
     .search-result-item:last-child { border-bottom: none; }
-    .search-result-title { font-weight: 600; color: #212529; }
-    .search-result-folder { font-size: 0.75rem; color: #6c757d; float: right; }
-    .search-result-snippet { font-size: 0.85rem; color: #495057; margin-top: 4px; 
-        overflow: hidden; 
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        padding-right: 12px; }
+   
     .search-result-snippet b, .search-result-title b { background-color: #FFF3CD; font-weight: 600; }
 </style>
 
@@ -95,7 +77,7 @@
                     </button>
                 </div>
      
-                <div id="searchDropdown" class="position-absolute bg-white rounded shadow d-none"
+                <div id="searchDropdown" class="position-absolute rounded shadow d-none"
                      style="top: 100%; left: 0; right: 0; margin-top: 4px; z-index: 1050; max-height: 400px; overflow-y: auto;">
                 </div>
             </div>
@@ -131,6 +113,12 @@
                             <a class="dropdown-item nv-dropdown-item" asp-controller="Settings" asp-action="Index">
                                 <i class="bi bi-gear"></i> Settings
                             </a>
+                        </li>
+                        <li>
+                            <button class="dropdown-item nv-dropdown-item" id="themeToggle">
+                                <i class="bi bi-moon" id="themeToggleIcon"></i>
+                                <span id="themeToggleLabel">Dark mode</span>
+                            </button>
                         </li>
                         <li>
                             <a class="dropdown-item nv-dropdown-item" asp-controller="Trash" asp-action="Index">
@@ -231,7 +219,7 @@
     let availableTags = [];
     let searchTimeout = null;
  
-    // ── Fetch folders and tags for the filter modal ──
+    //Fetch folders and tags for the filter modal
     async function loadFilterOptions() {
         if (availableFolders.length === 0) {
             const fRes = await fetch('/Folders/ListJson');
@@ -243,7 +231,7 @@
         }
     }
  
-    // ── Render the filter modal contents ──
+    //Render the filter modal contents
     function populateFilterModal() {
         filterFolderSelect.innerHTML = '<option value="">Any folder</option>' +
             availableFolders.map(f => `<option value="${f.id}" ${f.id === activeFolderId ? 'selected' : ''}>${escapeHtml(f.name)}</option>`).join('');
@@ -267,7 +255,7 @@
         populateFilterModal();
     });
  
-    // ── Apply filters from modal ──
+    //Apply filters from modal
     applyFilterBtn.addEventListener('click', function() {
         const folderId = filterFolderSelect.value;
         if (folderId) {
@@ -317,8 +305,7 @@
     `).join('') + `<a href="${seeAllUrl}" class="search-result-see-all">See all results <i class="bi bi-arrow-right"></i></a>`;
         searchDropdown.classList.remove('d-none');
     }
-
-// Also update renderChips to use Bootstrap icon instead of emoji:
+    
     function renderChips() {
         filterChips.innerHTML = '';
 
@@ -350,24 +337,29 @@
             filterChips.appendChild(chip);
         });
     }
- 
-    // ── Run the search ──
+
     async function runSearch() {
         const q = searchInput.value.trim();
-        if (!q && activeTagIds.size === 0 && activeFolderId === null) {
+        const hasFilters = activeTagIds.size > 0 || activeFolderId !== null;
+
+        // Nothing entered or selected — hide dropdown
+        if (!q && !hasFilters) {
             searchDropdown.classList.add('d-none');
             return;
         }
+
+        // Filters only, no text — show just the "See all results" link
         if (!q) {
-            searchDropdown.classList.add('d-none');
+            renderFilterOnlyDropdown();
             return;
         }
- 
+
+        // Normal text-based search
         const params = new URLSearchParams();
         params.set('q', q);
         activeTagIds.forEach(id => params.append('tagIds', id));
         if (activeFolderId !== null) params.set('folderId', activeFolderId);
- 
+
         try {
             const res = await fetch(`/Search/LiveSearch?${params.toString()}`);
             if (!res.ok) return;
@@ -378,22 +370,38 @@
         }
     }
 
+    function renderFilterOnlyDropdown() {
+        const seeAllParams = new URLSearchParams();
+        activeTagIds.forEach(id => seeAllParams.append('tagIds', id));
+        if (activeFolderId !== null) seeAllParams.set('folderId', activeFolderId);
+        const seeAllUrl = `/Search/Results?${seeAllParams.toString()}`;
+
+        searchDropdown.innerHTML = `
+        <div class="search-empty">Type to search, or jump straight to filtered results</div>
+        <a href="${seeAllUrl}" class="search-result-see-all">See all results <i class="bi bi-arrow-right"></i></a>
+    `;
+        searchDropdown.classList.remove('d-none');
+    }
+
    
  
-    // ── Debounced search on typing ──
+    //Debounced search on typing
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(runSearch, 300);
     });
  
-    // ── Close dropdown when clicking outside ──
+    //Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
-        if (!searchDropdown.contains(e.target) && !document.getElementById('searchBar').contains(e.target)) {
+        const filterModal = document.getElementById('searchFilterModal');
+        if (!searchDropdown.contains(e.target)
+            && !document.getElementById('searchBar').contains(e.target)
+            && !(filterModal && filterModal.contains(e.target))) {
             searchDropdown.classList.add('d-none');
         }
     });
  
-    // ── Reopen dropdown on focus if there's text ──
+    //Reopen dropdown on focus if there's text
     searchInput.addEventListener('focus', function() {
         if (searchInput.value.trim() && searchDropdown.innerHTML.trim()) {
             searchDropdown.classList.remove('d-none');
@@ -408,6 +416,25 @@
         return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 })();
+
+const toggle = document.getElementById('themeToggle');
+const icon = document.getElementById('themeToggleIcon');
+const label = document.getElementById('themeToggleLabel');
+
+function updateThemeUI(theme) {
+    icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+    label.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+}
+
+updateThemeUI(document.documentElement.getAttribute('data-theme') || 'light');
+
+toggle?.addEventListener('click', function() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    updateThemeUI(next);
+});
 </script>
 </body>
 </html>

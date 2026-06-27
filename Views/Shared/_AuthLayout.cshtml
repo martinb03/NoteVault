@@ -4,22 +4,54 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"] - NoteVault</title>
+
+    <!-- Apply theme before body renders -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"/>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
 </head>
 <body>
-<header>
-    <nav class="navbar nv-navbar d-flex justify-content-center">
-        <a class="nv-brand d-flex align-items-center gap-2" asp-controller="Account" asp-action="Login">
-            <i class="bi bi-journal-bookmark-fill"></i>
-            <span>NoteVault</span>
-        </a>
-    </nav>
-</header>
-<main role="main" class="pb-3">
-    @RenderBody()
-</main>
-<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <header>
+        <nav class="navbar nv-navbar d-flex justify-content-center position-relative">
+            <a class="nv-brand d-flex align-items-center gap-2" asp-controller="Account" asp-action="Login">
+                <i class="bi bi-journal-bookmark-fill"></i>
+                <span>NoteVault</span>
+            </a>
+            <button type="button" id="authThemeToggle" class="auth-theme-toggle" aria-label="Toggle theme">
+                <i class="bi bi-moon" id="authThemeIcon"></i>
+            </button>
+        </nav>
+    </header>
+    <main role="main" class="pb-3">
+        @RenderBody()
+    </main>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        (function() {
+            const toggle = document.getElementById('authThemeToggle');
+            const icon = document.getElementById('authThemeIcon');
+
+            function updateIcon(theme) {
+                icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+            }
+            updateIcon(document.documentElement.getAttribute('data-theme') || 'light');
+
+            toggle.addEventListener('click', function() {
+                const current = document.documentElement.getAttribute('data-theme') || 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+                updateIcon(next);
+            });
+        })();
+    </script>
 </body>
 </html>
