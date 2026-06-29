@@ -21,5 +21,4 @@
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
       <PackageReference Include="PuppeteerSharp" Version="25.1.2" />
     </ItemGroup>
-
 </Project>

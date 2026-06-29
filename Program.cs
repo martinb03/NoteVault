@@ -4,6 +4,7 @@ using NoteVault.Database;
 using NoteVault.Models;
 using System.Threading.Tasks;
 using NoteVault.Services;
+using PuppeteerSharp;
 
 namespace NoteVault;
 
@@ -18,7 +19,7 @@ public class Program
         
         builder.Services.AddDbContext<AppDbContext>(optionsBuilder =>
         {
-            optionsBuilder.UseNpgsql(builder.Configuration["DbConnectionString"]!);
+            optionsBuilder.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")!);
         });
 
         builder.Services.AddSingleton<PdfService>();
@@ -66,9 +67,20 @@ public class Program
             name: "default",
             pattern: "{controller=Dashboard}/{action=Index}/{id?}");
         
-        // Ensure Chromium is downloaded for PDF export
+        // Ensuring Chromium is downloaded for PDF export
         await new PuppeteerSharp.BrowserFetcher().DownloadAsync();
-        
+        // Applying pending migrations on startup
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Database.Migrate();
+        }
+        // Ensuring Chromium is downloaded before the app starts accepting requests
+        using (var scope = app.Services.CreateScope())
+        {
+            var browserFetcher = new PuppeteerSharp.BrowserFetcher();
+            await browserFetcher.DownloadAsync();
+        }
         await app.RunAsync();
     }
 }

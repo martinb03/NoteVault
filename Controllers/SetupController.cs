@@ -75,7 +75,7 @@ public class SetupController : Controller
             await _userManager.AddToRoleAsync(user, "Admin");
             await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("DisplayName", user.DisplayName));
             await _signInManager.SignInAsync(user, isPersistent: false);
-            return RedirectToAction("Index", "Home");
+            return RedirectToAction("Index", "Dashboard");
         }
  
         // If creation failed, show the errors
