@@ -36,7 +36,7 @@ public class AccountController : Controller
         // If already logged in, go to home
         if (User.Identity?.IsAuthenticated == true)
         {
-            return RedirectToAction("Index", "Home");
+            return RedirectToAction("Index", "Dashboard");
         }
  
         var settings = await _context.AppSettings.FirstOrDefaultAsync(s => s.Id == 1);
@@ -118,7 +118,7 @@ public class AccountController : Controller
         if (result.Succeeded)
         {
             await _signInManager.SignInAsync(user, isPersistent: false);
-            return RedirectToAction("Index", "Home");
+            return RedirectToAction("Index", "Dashboard");
         }
 
         foreach (var error in result.Errors)

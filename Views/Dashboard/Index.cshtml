@@ -4,13 +4,12 @@
 @{
     ViewData["Title"] = "Home";
     Layout = "_Layout";
-    var greeting = DateTime.Now.Hour switch
-    {
-        < 5 => "Still up?",
-        < 12 => "Good morning!",
-        < 18 => "Good afternoon!",
-        _ => "Good evening!"
-    };
+    var hour = DateTime.Now.Hour;
+    string greeting;
+    if (hour < 5) greeting = "Still up?";
+    else if (hour < 12) greeting = "Good morning!";
+    else if (hour < 18) greeting = "Good afternoon!";
+    else greeting = "Good evening!";
 }
 
 <style>
