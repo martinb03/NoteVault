@@ -16,6 +16,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<NoteTag> NoteTags => Set<NoteTag>();
     public DbSet<AppSettings> AppSettings { get; set; } = null!;
+    public DbSet<NoteShare> NoteShares { get; set; }
+    public DbSet<FolderShare> FolderShares { get; set; }
+    public DbSet<NoteEditLock> NoteEditLocks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +130,63 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany(t => t.NoteTags)
                 .HasForeignKey(nt => nt.TagId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        //------Sharing constraints + indexes------
+        modelBuilder.Entity<NoteShare>(entity =>
+        {
+            entity.HasIndex(ns => new {ns.NoteId, ns.SharedWithUserId})
+                .IsUnique();
+            
+            entity.HasIndex(ns => ns.SharedWithUserId);
+            
+            entity.HasOne(ns => ns.Note)
+                .WithMany(n => n.Shares)
+                .HasForeignKey(ns => ns.NoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(ns => ns.SharedWithUser)
+                .WithMany(u => u.NoteSharesReceived)
+                .HasForeignKey(ns => ns.SharedWithUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(ns => ns.SharedByUser)
+                .WithMany(u => u.NoteSharesInitiated)
+                .HasForeignKey(ns => ns.SharedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasQueryFilter(ns => ns.Note.DeletedAt == null);
+        });
+
+        modelBuilder.Entity<FolderShare>(entity =>
+        {
+            entity.HasIndex(fs => new { fs.FolderId, fs.SharedWithUserId })
+                .IsUnique();
+
+            entity.HasIndex(fs => fs.SharedWithUserId);
+
+            entity.HasOne(fs => fs.Folder)
+                .WithMany(f => f.Shares)
+                .HasForeignKey(fs => fs.FolderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(fs => fs.SharedWithUser)
+                .WithMany(u => u.FolderSharesReceived)
+                .HasForeignKey(fs => fs.SharedWithUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(fs => fs.SharedByUser)
+                .WithMany(u => u.FolderSharesInitiated)
+                .HasForeignKey(fs => fs.SharedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasQueryFilter(fs => fs.Folder.DeletedAt == null);
+        });
+        
+        modelBuilder.Entity<NoteEditLock>(entity =>
+        {
+            entity.HasIndex(el => el.NoteId)
+                .IsUnique();
         });
     }
     

@@ -17,4 +17,5 @@ public class Folder
     public ApplicationUser User { get; set; } = null!;
     public ICollection<Pile> Piles { get; set; } = new List<Pile>();
     public ICollection<Note> Notes { get; set; } = new List<Note>();
+    public List<FolderShare> Shares { get; set; } = new();
 }

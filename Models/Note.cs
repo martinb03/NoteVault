@@ -23,4 +23,6 @@ public class Note
     public ICollection<PileNote> PileNotes { get; set; } = new List<PileNote>();
     public ICollection<NoteTag> NoteTags { get; set; } = new List<NoteTag>();
     public NpgsqlTsVector? SearchVector { get; set; }
+    public List<NoteShare> Shares { get; set; } = new();
+    public NoteEditLock? EditLock { get; set; }
 }
