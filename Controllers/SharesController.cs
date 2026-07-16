@@ -326,10 +326,9 @@ public class SharesController : Controller
 
     // ======= Shared validation =======
 
-    /// <summary>
-    /// Validates a share-change request against the permission rules.
-    /// Returns an error message, or null if valid.
-    /// </summary>
+    /* Summary:
+    Validates a share-change request against the permission rules.
+    Returns an error message, or null if valid*/
     private static string? ValidateShareChanges(
         UpdateSharesRequest request,
         bool isOwner,
@@ -378,6 +377,211 @@ public class SharesController : Controller
         }
 
         return null;
+    }
+    
+        // ======= Shared with me: view =======
+     
+    [HttpGet]
+    public async Task<IActionResult> SharedWithMe()
+    {
+        var userId = _userManager.GetUserId(User)!;
+     
+        // 1. Notes shared directly with the user (not via a folder)
+        var directNoteShares = await _context.NoteShares
+            .AsNoTracking()
+            .Include(ns => ns.Note).ThenInclude(n => n.User)
+            .Include(ns => ns.SharedByUser)
+            .Where(ns => ns.SharedWithUserId == userId)
+            .Select(ns => new SharedItemViewModel
+            {
+                ItemType = "Note",
+                Id = ns.NoteId,
+                Title = ns.Note.Title,
+                OwnerName = ns.Note.User.DisplayName,
+                OwnerUserId = ns.Note.UserId,
+                SharedByName = ns.SharedByUser.DisplayName,
+                SharedByUserId = ns.SharedByUserId,
+                Permission = ns.Permission.ToString(),
+                UpdatedAt = ns.Note.UpdatedAt,
+                SharedAt = ns.CreatedAt
+            })
+            .ToListAsync();
+     
+        // 2. Notes accessible via a shared folder (no explicit direct share).
+        //    A note directly shared AND in a shared folder appears only once (from step 1) —
+        //    we exclude such notes here to avoid duplicates.
+        var directNoteIds = directNoteShares.Select(n => n.Id).ToHashSet();
+     
+        var folderNoteAccess = await _context.FolderShares
+            .AsNoTracking()
+            .Include(fs => fs.Folder).ThenInclude(f => f.User)
+            .Include(fs => fs.SharedByUser)
+            .Where(fs => fs.SharedWithUserId == userId)
+            .SelectMany(fs => fs.Folder.Notes
+                .Where(n => !directNoteIds.Contains(n.Id))
+                .Select(n => new SharedItemViewModel
+                {
+                    ItemType = "Note",
+                    Id = n.Id,
+                    Title = n.Title,
+                    OwnerName = fs.Folder.User.DisplayName,
+                    OwnerUserId = fs.Folder.UserId,
+                    SharedByName = fs.SharedByUser.DisplayName,
+                    SharedByUserId = fs.SharedByUserId,
+                    Permission = fs.Permission.ToString(),
+                    UpdatedAt = n.UpdatedAt,
+                    SharedAt = fs.CreatedAt
+                }))
+            .ToListAsync();
+     
+        // 3. Folders shared with the user
+        var folderShares = await _context.FolderShares
+            .AsNoTracking()
+            .Include(fs => fs.Folder).ThenInclude(f => f.User)
+            .Include(fs => fs.SharedByUser)
+            .Where(fs => fs.SharedWithUserId == userId)
+            .Select(fs => new SharedItemViewModel
+            {
+                ItemType = "Folder",
+                Id = fs.FolderId,
+                Title = fs.Folder.Name,
+                OwnerName = fs.Folder.User.DisplayName,
+                OwnerUserId = fs.Folder.UserId,
+                SharedByName = fs.SharedByUser.DisplayName,
+                SharedByUserId = fs.SharedByUserId,
+                Permission = fs.Permission.ToString(),
+                UpdatedAt = fs.Folder.UpdatedAt,
+                SharedAt = fs.CreatedAt
+            })
+            .ToListAsync();
+     
+        var items = directNoteShares
+            .Concat(folderNoteAccess)
+            .Concat(folderShares)
+            .OrderByDescending(i => i.SharedAt)
+            .ToList();
+     
+        // Attach recipient's private tags to each note item
+        var noteIds = items.Where(i => i.ItemType == "Note").Select(i => i.Id).ToList();
+        if (noteIds.Count > 0)
+        {
+            var privateTagsByNote = await _context.NoteTags
+                .AsNoTracking()
+                .Include(nt => nt.Tag)
+                .Where(nt => noteIds.Contains(nt.NoteId) && nt.Tag.UserId == userId)
+                .GroupBy(nt => nt.NoteId)
+                .Select(g => new
+                {
+                    NoteId = g.Key,
+                    Tags = g.Select(nt => new TagListViewModel
+                    {
+                        Id = nt.Tag.Id,
+                        Name = nt.Tag.Name,
+                        Color = nt.Tag.Color
+                    }).ToList()
+                })
+                .ToDictionaryAsync(x => x.NoteId, x => x.Tags);
+     
+            foreach (var item in items.Where(i => i.ItemType == "Note"))
+            {
+                if (privateTagsByNote.TryGetValue(item.Id, out var tags))
+                    item.PrivateTags = tags;
+            }
+        }
+     
+        // Filter dropdown options (deduped)
+        var sharedByOptions = items
+            .Select(i => new UserFilterOption { UserId = i.SharedByUserId, DisplayName = i.SharedByName })
+            .DistinctBy(o => o.UserId)
+            .OrderBy(o => o.DisplayName)
+            .ToList();
+     
+        var ownedByOptions = items
+            .Select(i => new UserFilterOption { UserId = i.OwnerUserId, DisplayName = i.OwnerName })
+            .DistinctBy(o => o.UserId)
+            .OrderBy(o => o.DisplayName)
+            .ToList();
+     
+        var model = new SharedWithMePageViewModel
+        {
+            Items = items,
+            SharedByOptions = sharedByOptions,
+            OwnedByOptions = ownedByOptions
+        };
+     
+        return View(model);
+    }
+     
+    // ======= Save copy =======
+     
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveCopy([FromBody] SaveCopyRequest request)
+    {
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, request.NoteId);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+     
+        var source = await _context.Notes
+            .AsNoTracking()
+            .Include(n => n.User)
+            .FirstOrDefaultAsync(n => n.Id == request.NoteId);
+        if (source == null)
+            return NotFound();
+     
+        // Owners copying their own note keep the metadata clean (no chip on self-copies)
+        var isSelfCopy = source.UserId == userId;
+     
+        var copy = new Note
+        {
+            UserId = userId,
+            FolderId = null,          // copies land as unfiled in the user's vault
+            Title = source.Title,
+            Content = source.Content,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CopiedFromUserId = isSelfCopy ? null : source.UserId,
+            CopiedFromTitle = isSelfCopy ? null : source.Title
+        };
+     
+        _context.Notes.Add(copy);
+        await _context.SaveChangesAsync();
+     
+        return Json(new { success = true, newNoteId = copy.Id });
+    }
+ 
+    // ======= Remove from Shared with me =======
+     
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveFromSharedWithMe([FromBody] RemoveFromSharedRequest request)
+    {
+        var userId = _userManager.GetUserId(User)!;
+     
+        if (request.ItemType == "Note")
+        {
+            var share = await _context.NoteShares
+                .FirstOrDefaultAsync(ns => ns.NoteId == request.ItemId && ns.SharedWithUserId == userId);
+            if (share == null)
+                return NotFound();
+            _context.NoteShares.Remove(share);
+        }
+        else if (request.ItemType == "Folder")
+        {
+            var share = await _context.FolderShares
+                .FirstOrDefaultAsync(fs => fs.FolderId == request.ItemId && fs.SharedWithUserId == userId);
+            if (share == null)
+                return NotFound();
+            _context.FolderShares.Remove(share);
+        }
+        else
+        {
+            return BadRequest(new { error = "Unknown item type." });
+        }
+     
+        await _context.SaveChangesAsync();
+        return Json(new { success = true });
     }
 
     private static SharePermission? ParsePermission(string permission) =>
