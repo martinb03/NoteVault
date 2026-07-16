@@ -25,4 +25,6 @@ public class Note
     public NpgsqlTsVector? SearchVector { get; set; }
     public List<NoteShare> Shares { get; set; } = new();
     public NoteEditLock? EditLock { get; set; }
+    public string? CopiedFromUserId { get; set; }
+    public string? CopiedFromTitle { get; set; }
 }

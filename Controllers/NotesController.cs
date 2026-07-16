@@ -16,19 +16,24 @@ public class NotesController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RazorViewRenderer _viewRenderer;
     private readonly PdfService _pdfService;
+    private readonly IPermissionService _permissionService;
+    
+    private static readonly TimeSpan LockInactivityTimeout = TimeSpan.FromMinutes(5);
  
     public NotesController(AppDbContext context,
         UserManager<ApplicationUser> userManager,
         RazorViewRenderer viewRenderer,
-        PdfService pdfService)
+        PdfService pdfService,
+        IPermissionService permissionService)
     {
         _context = context;
         _userManager = userManager;
         _viewRenderer = viewRenderer;
         _pdfService = pdfService;
+        _permissionService = permissionService;
     }
  
-    // ══════════════ Notes List ══════════════════════════
+    // ======= Notes List =======
     [HttpGet]
     public async Task<IActionResult> Index(bool unfiledOnly = false)
     {
@@ -70,7 +75,7 @@ public class NotesController : Controller
         return View(model);
     }
  
-    // ══════════════ Create Note (from modal) ═══════════
+    // ------- Create Note (from modal) -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateNoteViewModel model, string? returnUrl)
@@ -105,7 +110,7 @@ public class NotesController : Controller
         return RedirectToAction("Edit", new { id = note.Id });
     }
  
-    // ══════════════ Note Details ════════════════════════
+    // ------- Note Details -------
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
@@ -165,7 +170,7 @@ public class NotesController : Controller
         return View(model);
     }
  
-    // ══════════════ Edit Note (Quill editor) ════════════
+    // ------- Edit Note (Quill editor) -------
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
@@ -190,7 +195,7 @@ public class NotesController : Controller
         return View(model);
     }
  
-    // ══════════════ Auto-save (AJAX) ════════════════════
+    // ------- Auto-save (AJAX) -------
     [HttpPost]
     public async Task<IActionResult> AutoSave([FromBody] AutoSaveRequest request)
     {
@@ -210,7 +215,7 @@ public class NotesController : Controller
         return Json(new { success = true, updatedAt = note.UpdatedAt.ToString("o") });
     }
  
-    // ══════════════ Change Parent Folder ════════════════
+    // ------- Change Parent Folder -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangeFolder(int id, int? folderId)
@@ -236,7 +241,7 @@ public class NotesController : Controller
         return RedirectToAction("Details", new { id });
     }
  
-    // ══════════════ Add Tags to Note ════════════════════
+    // ------- Add Tags to Note -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddTags(int id, List<int> tagIds)
@@ -267,7 +272,7 @@ public class NotesController : Controller
         return RedirectToAction("Details", new { id, from = Request.Query["from"].ToString() });
     }
 
-// ══════════════ Remove Tag from Note ════════════════
+// ------- Remove Tag from Note -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveTag(int id, int tagId)
@@ -290,7 +295,7 @@ public class NotesController : Controller
         return RedirectToAction("Details", new { id, from = Request.Query["from"].ToString() });
     }
     
-    // ══════════════ Save Version ════════════════════════
+    // ------- Save Version -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveVersion(int id, string? name)
@@ -325,7 +330,7 @@ public class NotesController : Controller
         return RedirectToAction("Edit", new { id });
     }
  
-    // ══════════════ Soft Delete Note ════════════════════
+    // ------- Soft Delete Note -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id, string? returnUrl)
@@ -347,7 +352,7 @@ public class NotesController : Controller
             : RedirectToAction("Index");
     }
  
-    // ══════════════ Versions List ═══════════════════════
+    // ------- Versions List -------
     [HttpGet]
     public async Task<IActionResult> Versions(int id)
     {
@@ -381,7 +386,7 @@ public class NotesController : Controller
         return View(model);
     }
  
-    // ══════════════ Version Details ═════════════════════
+    // ------- Version Details -------
     [HttpGet]
     public async Task<IActionResult> VersionDetails(int id)
     {
@@ -410,7 +415,7 @@ public class NotesController : Controller
         return View(model);
     }
  
-    // ══════════════ Update Version Name ════════════════
+    // ------- Update Version Name -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateVersionName(int id, string? name)
@@ -430,7 +435,7 @@ public class NotesController : Controller
         return RedirectToAction("VersionDetails", new { id });
     }
  
-    // ══════════════ Delete Version (permanent) ══════════
+    // ------- Delete Version (permanent) -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteVersion(int id)
@@ -451,7 +456,7 @@ public class NotesController : Controller
         return RedirectToAction("Versions", new { id = noteId });
     }
  
-    // ══════════════ Restore Version ═════════════════════
+    // ------- Restore Version -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RestoreVersion(int id)
@@ -472,7 +477,7 @@ public class NotesController : Controller
         return RedirectToAction("Edit", new { id = version.NoteId });
     }
  
-    // ── Helper ──────────────────────────────────────────
+    // ------- Helper -------
     private async Task<List<FolderSelectItem>> GetUserFolders(string userId)
     {
         return await _context.Folders
@@ -499,6 +504,150 @@ public class NotesController : Controller
         var filename = $"{FileNameSanitizer.Sanitize(note.Title)}.pdf";
 
         return File(pdfBytes, "application/pdf", filename);
+    }
+    
+    /* Summary:
+    Acquire an edit lock on a note. Called when the edit view opens.
+    Behavior:
+     - Cleans up stale locks (older than the inactivity timeout) before acting.
+     - If the caller already holds the lock, refresh it.
+     - If someone else holds an active lock, return conflict info (frontend shows the shaded view).
+     - Otherwise creates a new lock.*/
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AcquireLock(int id)
+    {
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
+ 
+        await CleanupStaleLockAsync(id);
+ 
+        var lockRow = await _context.NoteEditLocks
+            .Include(l => l.User)
+            .FirstOrDefaultAsync(l => l.NoteId == id);
+ 
+        if (lockRow == null)
+        {
+            _context.NoteEditLocks.Add(new NoteEditLock
+            {
+                NoteId = id,
+                UserId = userId,
+                AcquiredAt = DateTime.UtcNow,
+                LastActivityAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, acquired = true });
+        }
+ 
+        if (lockRow.UserId == userId)
+        {
+            lockRow.LastActivityAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, acquired = true });
+        }
+ 
+        // Someone else holds it
+        return Json(new
+        {
+            success = false,
+            acquired = false,
+            heldByUserId = lockRow.UserId,
+            heldByName = lockRow.User.DisplayName
+        });
+    }
+    
+    /* Summary:
+    Refresh the current lock. Called by the client every 60 seconds while editing.
+    Fails if the caller no longer holds the lock (someone took control).*/
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RefreshLock(int id)
+    {
+        var userId = _userManager.GetUserId(User)!;
+     
+        var lockRow = await _context.NoteEditLocks
+            .FirstOrDefaultAsync(l => l.NoteId == id);
+     
+        if (lockRow == null || lockRow.UserId != userId)
+            return Json(new { success = false });
+     
+        lockRow.LastActivityAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Json(new { success = true });
+    }
+     
+    // Release the caller's lock. Idempotent: no-op if the caller doesn't hold it.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReleaseLock(int id)
+    {
+        var userId = _userManager.GetUserId(User)!;
+
+        var lockRow = await _context.NoteEditLocks
+            .FirstOrDefaultAsync(l => l.NoteId == id && l.UserId == userId);
+
+        if (lockRow != null)
+        {
+            _context.NoteEditLocks.Remove(lockRow);
+            await _context.SaveChangesAsync();
+        }
+
+        return Json(new { success = true });
+    }
+
+    /* Summary:
+    Owner-only: forcibly take control from whoever currently holds the lock.
+    Called when the owner clicks "Take control" on the Details view.*/
+    
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TakeControl(int id)
+    {
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
+     
+        var lockRow = await _context.NoteEditLocks
+            .FirstOrDefaultAsync(l => l.NoteId == id);
+     
+        if (lockRow != null)
+        {
+            _context.NoteEditLocks.Remove(lockRow);
+            await _context.SaveChangesAsync();
+        }
+     
+        _context.NoteEditLocks.Add(new NoteEditLock
+        {
+            NoteId = id,
+            UserId = userId,
+            AcquiredAt = DateTime.UtcNow,
+            LastActivityAt = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+     
+        return Json(new { success = true });
+    }
+     
+    /// <summary>
+    /// Remove any lock whose LastActivityAt is older than the inactivity timeout.
+    /// Called at the start of AcquireLock so idle sessions don't hold notes hostage.
+    /// </summary>
+    private async Task CleanupStaleLockAsync(int noteId)
+    {
+        var cutoff = DateTime.UtcNow - LockInactivityTimeout;
+        var stale = await _context.NoteEditLocks
+            .Where(l => l.NoteId == noteId && l.LastActivityAt < cutoff)
+            .ToListAsync();
+     
+        if (stale.Count > 0)
+        {
+            _context.NoteEditLocks.RemoveRange(stale);
+            await _context.SaveChangesAsync();
+        }
     }
 }
  

@@ -81,6 +81,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             
             entity.HasIndex(n => n.SearchVector)
                 .HasMethod("GIN");
+            
+            entity.HasOne<ApplicationUser>().
+                WithMany()
+                .HasForeignKey(n => n.CopiedFromUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
         
         //-------NoteVersion-------

@@ -22,6 +22,7 @@ public class Program
             optionsBuilder.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")!);
         });
 
+        builder.Services.AddScoped<IPermissionService, PermissionService>();
         builder.Services.AddSingleton<PdfService>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<RazorViewRenderer>();
