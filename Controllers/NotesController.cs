@@ -80,7 +80,7 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateNoteViewModel model, string? returnUrl)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         if (!ModelState.IsValid)
         {
@@ -88,19 +88,40 @@ public class NotesController : Controller
             return RedirectToAction("Index");
         }
  
+        // Default: caller owns the new note
+        string ownerUserId = userId;
+ 
+        // If creating inside a folder, verify permission and honor the "folder owner
+        // owns everything inside" rule for shared folders.
+        if (model.FolderId != null)
+        {
+            var folderPermission = await _permissionService.GetFolderPermissionAsync(userId, model.FolderId.Value);
+            if (folderPermission < EffectivePermission.Edit)
+                return Forbid();
+ 
+            if (folderPermission != EffectivePermission.Owner)
+            {
+                var folder = await _context.Folders
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(f => f.Id == model.FolderId.Value);
+                if (folder == null) return NotFound();
+                ownerUserId = folder.UserId;
+            }
+        }
+ 
         var note = new Note
         {
             Title = model.Title,
             Content = string.Empty,
             FolderId = model.FolderId,
-            UserId = userId!,
+            UserId = ownerUserId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
  
         _context.Notes.Add(note);
         await _context.SaveChangesAsync();
-
+ 
         if (!string.IsNullOrEmpty(returnUrl))
         {
             TempData["Success"] = $"Note \"{note.Title}\" created.";
@@ -114,34 +135,83 @@ public class NotesController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
-        var userId = _userManager.GetUserId(User);
- 
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+     
         var note = await _context.Notes
             .Include(n => n.Folder)
             .Include(n => n.Versions)
-            .Include(n => n.NoteTags)
-                .ThenInclude(nt => nt.Tag)
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
- 
+            .FirstOrDefaultAsync(n => n.Id == id);
+     
         if (note == null) return NotFound();
- 
-        note.ViewCount++;
-        note.LastAccessedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-
-        var noteTagIds = note.NoteTags.Select(nt => nt.TagId).ToHashSet();
-        
+     
+        var isOwner = permission == EffectivePermission.Owner;
+     
+        // Only track access stats for the owner viewing their own note,
+        // otherwise "Frequently visited" would be skewed by recipients.
+        if (isOwner)
+        {
+            note.ViewCount++;
+            note.LastAccessedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+     
+        // Owner info (needed for shared notes to show "Owned by X")
+        var owner = await _userManager.FindByIdAsync(note.UserId);
+        var ownerName = owner?.DisplayName ?? "";
+     
+        // Current user's private tags on this note
+        var currentUserTagsOnNote = await _context.NoteTags
+            .Include(nt => nt.Tag)
+            .Where(nt => nt.NoteId == id && nt.Tag.UserId == userId)
+            .Select(nt => new TagListViewModel
+            {
+                Id = nt.Tag.Id,
+                Name = nt.Tag.Name,
+                Color = nt.Tag.Color
+            })
+            .OrderBy(t => t.Name)
+            .ToListAsync();
+     
+        var noteTagIds = currentUserTagsOnNote.Select(t => t.Id).ToHashSet();
+     
         var allUserTags = await _context.Tags
-            .Where(t=>t.UserId == userId)
-            .OrderBy(t=>t.Name)
-            .Select(t=>new TagListViewModel
+            .Where(t => t.UserId == userId)
+            .OrderBy(t => t.Name)
+            .Select(t => new TagListViewModel
             {
                 Id = t.Id,
                 Name = t.Name,
                 Color = t.Color
             })
             .ToListAsync();
-        
+     
+        // Copy chip metadata — resolve the source user's current display name
+        string? copiedFromUserName = null;
+        if (note.CopiedFromUserId != null)
+        {
+            var copySourceUser = await _userManager.FindByIdAsync(note.CopiedFromUserId);
+            copiedFromUserName = copySourceUser?.DisplayName;
+        }
+     
+        // Lock state
+        var lockRow = await _context.NoteEditLocks
+            .Include(l => l.User)
+            .FirstOrDefaultAsync(l => l.NoteId == id);
+        string? lockHeldByUserId = null;
+        string? lockHeldByName = null;
+        if (lockRow != null)
+        {
+            var cutoff = DateTime.UtcNow - LockInactivityTimeout;
+            if (lockRow.LastActivityAt >= cutoff)
+            {
+                lockHeldByUserId = lockRow.UserId;
+                lockHeldByName = lockRow.User.DisplayName;
+            }
+        }
+     
         var model = new NoteDetailsViewModel
         {
             Id = note.Id,
@@ -152,21 +222,21 @@ public class NotesController : Controller
             CreatedAt = note.CreatedAt,
             UpdatedAt = note.UpdatedAt,
             VersionCount = note.Versions.Count,
-            AvailableFolders = await GetUserFolders(userId!),
-            Tags = note.NoteTags
-                .Select(nt=>new TagListViewModel
-                {
-                    Id = nt.Tag.Id,
-                    Name = nt.Tag.Name,
-                    Color = nt.Tag.Color
-                })
-                .OrderBy(t=>t.Name)
-                .ToList(),
-            AvailableTags = allUserTags
-                .Where(t=>!noteTagIds.Contains(t.Id))
-                .ToList()
+            AvailableFolders = isOwner ? await GetUserFolders(userId) : new(),  // recipients can't move
+            Tags = currentUserTagsOnNote,
+            AvailableTags = allUserTags.Where(t => !noteTagIds.Contains(t.Id)).ToList(),
+     
+            CurrentUserPermission = permission.ToString(),
+            IsOwner = isOwner,
+            OwnerUserId = note.UserId,
+            OwnerName = ownerName,
+            LockHeldByUserId = lockHeldByUserId,
+            LockHeldByName = lockHeldByName,
+            CopiedFromUserId = note.CopiedFromUserId,
+            CopiedFromUserName = copiedFromUserName,
+            CopiedFromTitle = note.CopiedFromTitle
         };
- 
+     
         return View(model);
     }
  
@@ -174,13 +244,32 @@ public class NotesController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
  
         var note = await _context.Notes
             .Include(n => n.Folder)
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+            .FirstOrDefaultAsync(n => n.Id == id);
  
         if (note == null) return NotFound();
+ 
+        // Lock state — view uses this to render either the editor or the shaded read-only overlay
+        var lockRow = await _context.NoteEditLocks
+            .Include(l => l.User)
+            .FirstOrDefaultAsync(l => l.NoteId == id);
+        string? lockHeldByUserId = null;
+        string? lockHeldByName = null;
+        if (lockRow != null)
+        {
+            var cutoff = DateTime.UtcNow - LockInactivityTimeout;
+            if (lockRow.LastActivityAt >= cutoff && lockRow.UserId != userId)
+            {
+                lockHeldByUserId = lockRow.UserId;
+                lockHeldByName = lockRow.User.DisplayName;
+            }
+        }
  
         var model = new EditNoteViewModel
         {
@@ -189,7 +278,11 @@ public class NotesController : Controller
             Content = note.Content,
             FolderId = note.FolderId,
             FolderName = note.Folder?.Name,
-            UpdatedAt = note.UpdatedAt
+            UpdatedAt = note.UpdatedAt,
+            CurrentUserPermission = permission.ToString(),
+            IsOwner = permission == EffectivePermission.Owner,
+            LockHeldByUserId = lockHeldByUserId,
+            LockHeldByName = lockHeldByName
         };
  
         return View(model);
@@ -199,16 +292,26 @@ public class NotesController : Controller
     [HttpPost]
     public async Task<IActionResult> AutoSave([FromBody] AutoSaveRequest request)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, request.Id);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
  
-        var note = await _context.Notes
-            .FirstOrDefaultAsync(n => n.Id == request.Id && n.UserId == userId);
+        // Verify the caller still holds the lock; if not, refuse the save.
+        var lockRow = await _context.NoteEditLocks
+            .FirstOrDefaultAsync(l => l.NoteId == request.Id);
+        if (lockRow == null || lockRow.UserId != userId)
+            return Json(new { success = false, reason = "lock_lost" });
  
+        var note = await _context.Notes.FirstOrDefaultAsync(n => n.Id == request.Id);
         if (note == null) return NotFound();
  
         note.Title = request.Title;
         note.Content = request.Content;
         note.UpdatedAt = DateTime.UtcNow;
+ 
+        // Refresh the lock — activity resets the inactivity clock
+        lockRow.LastActivityAt = DateTime.UtcNow;
  
         await _context.SaveChangesAsync();
  
@@ -220,11 +323,14 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangeFolder(int id, int? folderId)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
  
         var note = await _context.Notes
             .Include(n => n.PileNotes)
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+            .FirstOrDefaultAsync(n => n.Id == id);
  
         if (note == null) return NotFound();
  
@@ -246,52 +352,59 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddTags(int id, List<int> tagIds)
     {
-        var userId = _userManager.GetUserId(User);
-
-        var note = await _context.Notes
-            .Include(n => n.NoteTags)
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
-
-        if (note == null) return NotFound();
-
-        // Only add tags that belong to this user and aren't already on the note
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+ 
+        var noteExists = await _context.Notes.AnyAsync(n => n.Id == id);
+        if (!noteExists) return NotFound();
+ 
+        // Only add tags belonging to the current user
         var validTagIds = await _context.Tags
             .Where(t => tagIds.Contains(t.Id) && t.UserId == userId)
             .Select(t => t.Id)
             .ToListAsync();
-
-        var currentTagIds = note.NoteTags.Select(nt => nt.TagId).ToHashSet();
-
-        foreach (var tagId in validTagIds.Where(tid => !currentTagIds.Contains(tid)))
+ 
+        // Filter out tags this user has already applied to this note
+        var currentUserTagsOnNote = (await _context.NoteTags
+                .Include(nt => nt.Tag)
+                .Where(nt => nt.NoteId == id && nt.Tag.UserId == userId)
+                .Select(nt => nt.TagId)
+                .ToListAsync())
+            .ToHashSet();
+ 
+        foreach (var tagId in validTagIds.Where(tid => !currentUserTagsOnNote.Contains(tid)))
         {
-            _context.NoteTags.Add(new NoteTag { NoteId = note.Id, TagId = tagId });
+            _context.NoteTags.Add(new NoteTag { NoteId = id, TagId = tagId });
         }
-
+ 
         await _context.SaveChangesAsync();
-
+ 
         return RedirectToAction("Details", new { id, from = Request.Query["from"].ToString() });
     }
 
-// ------- Remove Tag from Note -------
+    // ------- Remove Tag from Note -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveTag(int id, int tagId)
     {
-        var userId = _userManager.GetUserId(User);
-
-        var note = await _context.Notes
-            .Include(n => n.NoteTags)
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
-
-        if (note == null) return NotFound();
-
-        var noteTag = note.NoteTags.FirstOrDefault(nt => nt.TagId == tagId);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+ 
+        // Only remove a tag if it belongs to the current user
+        var noteTag = await _context.NoteTags
+            .Include(nt => nt.Tag)
+            .FirstOrDefaultAsync(nt => nt.NoteId == id && nt.TagId == tagId && nt.Tag.UserId == userId);
+ 
         if (noteTag != null)
         {
             _context.NoteTags.Remove(noteTag);
             await _context.SaveChangesAsync();
         }
-
+ 
         return RedirectToAction("Details", new { id, from = Request.Query["from"].ToString() });
     }
     
@@ -300,13 +413,22 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveVersion(int id, string? name)
     {
-        Console.WriteLine($"DEBUG: name received = '{name}'");
-        
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
+ 
+        // Caller must hold the lock
+        var lockRow = await _context.NoteEditLocks.FirstOrDefaultAsync(l => l.NoteId == id);
+        if (lockRow == null || lockRow.UserId != userId)
+        {
+            TempData["Error"] = "You no longer hold the editing lock for this note.";
+            return RedirectToAction("Details", new { id });
+        }
  
         var note = await _context.Notes
             .Include(n => n.Versions)
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+            .FirstOrDefaultAsync(n => n.Id == id);
  
         if (note == null) return NotFound();
  
@@ -335,11 +457,12 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id, string? returnUrl)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
  
-        var note = await _context.Notes
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
- 
+        var note = await _context.Notes.FirstOrDefaultAsync(n => n.Id == id);
         if (note == null) return NotFound();
  
         note.DeletedAt = DateTime.UtcNow;
@@ -356,12 +479,15 @@ public class NotesController : Controller
     [HttpGet]
     public async Task<IActionResult> Versions(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission == EffectivePermission.None)
+            return Forbid();
  
         var note = await _context.Notes
             .Include(n => n.Folder)
             .Include(n => n.Versions)
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+            .FirstOrDefaultAsync(n => n.Id == id);
  
         if (note == null) return NotFound();
  
@@ -390,14 +516,18 @@ public class NotesController : Controller
     [HttpGet]
     public async Task<IActionResult> VersionDetails(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         var version = await _context.NoteVersions
             .Include(v => v.Note)
             .ThenInclude(n => n.Folder)
-            .FirstOrDefaultAsync(v => v.Id == id && v.Note.UserId == userId);
+            .FirstOrDefaultAsync(v => v.Id == id);
  
         if (version == null) return NotFound();
+ 
+        var permission = await _permissionService.GetNotePermissionAsync(userId, version.NoteId);
+        if (permission == EffectivePermission.None)
+            return Forbid();
  
         var model = new VersionDetailsViewModel
         {
@@ -420,13 +550,17 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateVersionName(int id, string? name)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         var version = await _context.NoteVersions
             .Include(v => v.Note)
-            .FirstOrDefaultAsync(v => v.Id == id && v.Note.UserId == userId);
+            .FirstOrDefaultAsync(v => v.Id == id);
  
         if (version == null) return NotFound();
+ 
+        var permission = await _permissionService.GetNotePermissionAsync(userId, version.NoteId);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
  
         version.Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
         await _context.SaveChangesAsync();
@@ -440,13 +574,17 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteVersion(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         var version = await _context.NoteVersions
             .Include(v => v.Note)
-            .FirstOrDefaultAsync(v => v.Id == id && v.Note.UserId == userId);
+            .FirstOrDefaultAsync(v => v.Id == id);
  
         if (version == null) return NotFound();
+ 
+        var permission = await _permissionService.GetNotePermissionAsync(userId, version.NoteId);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
  
         var noteId = version.NoteId;
         _context.NoteVersions.Remove(version);
@@ -461,13 +599,17 @@ public class NotesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RestoreVersion(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         var version = await _context.NoteVersions
             .Include(v => v.Note)
-            .FirstOrDefaultAsync(v => v.Id == id && v.Note.UserId == userId);
+            .FirstOrDefaultAsync(v => v.Id == id);
  
         if (version == null) return NotFound();
+ 
+        var permission = await _permissionService.GetNotePermissionAsync(userId, version.NoteId);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
  
         version.Note.Content = version.Content;
         version.Note.UpdatedAt = DateTime.UtcNow;
@@ -487,22 +629,24 @@ public class NotesController : Controller
             .ToListAsync();
     }
     
+    // ------- Export -------
     [HttpGet]
     public async Task<IActionResult> Export(int id)
     {
-        var userId = _userManager.GetUserId(User);
-
-        var note = await _context.Notes
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
-
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetNotePermissionAsync(userId, id);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+ 
+        var note = await _context.Notes.FirstOrDefaultAsync(n => n.Id == id);
         if (note == null) return NotFound();
-
+ 
         var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_NoteExport.cshtml",
             new NoteExportModel { Title = note.Title, Content = note.Content });
-
+ 
         var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
         var filename = $"{FileNameSanitizer.Sanitize(note.Title)}.pdf";
-
+ 
         return File(pdfBytes, "application/pdf", filename);
     }
     
@@ -632,10 +776,9 @@ public class NotesController : Controller
         return Json(new { success = true });
     }
      
-    /// <summary>
-    /// Remove any lock whose LastActivityAt is older than the inactivity timeout.
-    /// Called at the start of AcquireLock so idle sessions don't hold notes hostage.
-    /// </summary>
+    /* Summary
+    Remove any lock whose LastActivityAt is older than the inactivity timeout.
+    Called at the start of AcquireLock so idle sessions don't hold notes hostage.*/
     private async Task CleanupStaleLockAsync(int noteId)
     {
         var cutoff = DateTime.UtcNow - LockInactivityTimeout;

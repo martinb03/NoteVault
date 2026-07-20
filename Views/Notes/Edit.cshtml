@@ -220,7 +220,6 @@ ViewData["Breadcrumb"] = crumbs;
         font-family: 'Courier New', monospace;
     }
 </style>
-
 <!-- Quill JS -->
 <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
@@ -245,7 +244,42 @@ ViewData["Breadcrumb"] = crumbs;
     const saveStatus = document.getElementById('saveStatus');
     const saveStatusText = document.getElementById('saveStatusText');
     let saveTimeout;
+    let isDirty = false;
 
+    function getToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    }
+
+    // ── Acquire lock on page load ──
+    (async function acquireLock() {
+        const token = getToken();
+        const formData = new FormData();
+        if (token) formData.append('__RequestVerificationToken', token);
+
+        try {
+            const res = await fetch(`/Notes/AcquireLock/${noteId}`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await res.json();
+            if (!result.acquired) {
+                alert(`${result.heldByName} is currently editing this note.`);
+                window.location.href = `/Notes/Details/${noteId}`;
+            }
+        } catch (e) {
+            console.error('Failed to acquire lock', e);
+        }
+    })();
+
+    // ── Heartbeat every 60s ──
+    setInterval(async () => {
+        const token = getToken();
+        const formData = new FormData();
+        if (token) formData.append('__RequestVerificationToken', token);
+        await fetch(`/Notes/RefreshLock/${noteId}`, { method: 'POST', body: formData });
+    }, 60000);
+
+    // ── Autosave debounced ──
     function triggerAutoSave() {
         clearTimeout(saveTimeout);
         saveTimeout = setTimeout(async () => {
@@ -263,6 +297,7 @@ ViewData["Breadcrumb"] = crumbs;
                 });
                 const result = await response.json();
                 if (!result.success) throw new Error();
+                isDirty = false;
 
                 const date = new Date(result.updatedAt);
                 const day = String(date.getDate()).padStart(2, '0');
@@ -279,21 +314,11 @@ ViewData["Breadcrumb"] = crumbs;
         }, 5000);
     }
 
-    quill.on('text-change', triggerAutoSave);
-    titleInput.addEventListener('input', triggerAutoSave);
-
-    // Skip Title button — clear the input so a blank title gets submitted
-    document.getElementById('skipTitleBtn').addEventListener('click', (e) => {
-        document.querySelector('#saveVersionForm input[name="name"]').value = '';
-    });
-
-    let isDirty = false;
-
     quill.on('text-change', () => { isDirty = true; triggerAutoSave(); });
     titleInput.addEventListener('input', () => { isDirty = true; triggerAutoSave(); });
-    
+
+    // ── Force save (on blur / navigation) ──
     async function forceSave() {
-        // If there's a pending debounced save, cancel it
         if (!isDirty) return;
         clearTimeout(saveTimeout);
         isDirty = false;
@@ -306,17 +331,29 @@ ViewData["Breadcrumb"] = crumbs;
                     title: titleInput.value || 'Untitled note',
                     content: quill.root.innerHTML
                 }),
-                keepalive: true  // ensures request completes even during navigation
+                keepalive: true
             });
-        } catch { /* swallow - best effort */ }
+        } catch { /* swallow */ }
     }
 
-    // Save when title loses focus
     titleInput.addEventListener('blur', forceSave);
-    // Save when editor loses focus
     quill.root.addEventListener('blur', forceSave);
-    // Save when navigating away
-    window.addEventListener('beforeunload', forceSave);
-    
-    
+
+    // ── Save + release lock on navigation away ──
+    window.addEventListener('beforeunload', async () => {
+        if (isDirty) await forceSave();
+        const token = getToken();
+        const data = new FormData();
+        if (token) data.append('__RequestVerificationToken', token);
+        fetch(`/Notes/ReleaseLock/${noteId}`, {
+            method: 'POST',
+            body: data,
+            keepalive: true
+        });
+    });
+
+    // ── Skip Title button in Save Version modal ──
+    document.getElementById('skipTitleBtn').addEventListener('click', () => {
+        document.querySelector('#saveVersionForm input[name="name"]').value = '';
+    });
 </script>
