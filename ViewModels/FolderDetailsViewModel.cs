@@ -11,6 +11,10 @@ public class FolderDetailsViewModel
     public List<PileDetailViewModel> PinnedPiles { get; set; } = new();
     public List<PileDetailViewModel> Piles { get; set; } = new();
     public List<NoteListViewModel> Notes { get; set; } = new();
+    //Sharing
+    public string CurrentUserPermission { get; set; } = string.Empty;
+    public bool IsOwner { get; set; }
+    public string OwnerName { get; set; } = string.Empty;
 }
  
 public class PileDetailViewModel

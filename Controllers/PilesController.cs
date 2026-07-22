@@ -16,16 +16,19 @@ public class PilesController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RazorViewRenderer _viewRenderer;
     private readonly PdfService _pdfService;
+    private readonly IPermissionService _permissionService;
  
     public PilesController(AppDbContext context,
         UserManager<ApplicationUser> userManager,
         RazorViewRenderer viewRenderer,
-        PdfService pdfService)
+        PdfService pdfService,
+        IPermissionService permissionService)
     {
         _context = context;
         _userManager = userManager;
         _viewRenderer = viewRenderer;
         _pdfService = pdfService;
+        _permissionService = permissionService;
     }
  
     // ========= Create Pile =========
@@ -33,13 +36,13 @@ public class PilesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreatePileViewModel model)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, model.FolderId);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
  
-        // Verify the folder belongs to the user
-        var folder = await _context.Folders
-            .FirstOrDefaultAsync(f => f.Id == model.FolderId && f.UserId == userId);
- 
-        if (folder == null) return NotFound();
+        var folderExists = await _context.Folders.AnyAsync(f => f.Id == model.FolderId);
+        if (!folderExists) return NotFound();
  
         if (!ModelState.IsValid)
         {
@@ -74,13 +77,16 @@ public class PilesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditPileViewModel model)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         var pile = await _context.Piles
-            .Include(p => p.Folder)
-            .FirstOrDefaultAsync(p => p.Id == model.Id && p.Folder.UserId == userId);
+            .FirstOrDefaultAsync(p => p.Id == model.Id);
  
         if (pile == null) return NotFound();
+ 
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, pile.FolderId);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
  
         if (!ModelState.IsValid)
         {
@@ -104,13 +110,16 @@ public class PilesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TogglePin(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         var pile = await _context.Piles
-            .Include(p => p.Folder)
-            .FirstOrDefaultAsync(p => p.Id == id && p.Folder.UserId == userId);
+            .FirstOrDefaultAsync(p => p.Id == id);
  
         if (pile == null) return NotFound();
+ 
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, pile.FolderId);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
  
         pile.IsPinned = !pile.IsPinned;
         pile.UpdatedAt = DateTime.UtcNow;
@@ -125,43 +134,42 @@ public class PilesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ManageNotes(ManageNotesRequest request)
     {
-        var userId = _userManager.GetUserId(User);
- 
+        var userId = _userManager.GetUserId(User)!;
+     
         var pile = await _context.Piles
-            .Include(p => p.Folder)
             .Include(p => p.PileNotes)
-            .FirstOrDefaultAsync(p => p.Id == request.PileId && p.Folder.UserId == userId);
- 
+            .FirstOrDefaultAsync(p => p.Id == request.PileId);
+     
         if (pile == null) return NotFound();
- 
-        // Get all candidate notes — must be in the same folder
+     
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, pile.FolderId);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
+     
+        // Candidate notes: everything in the same folder, regardless of note ownership.
+        // (In shared folders, notes belong to the folder owner — access is via the folder.)
         var folderNoteIds = await _context.Notes
-            .Where(n => n.FolderId == pile.FolderId && n.UserId == userId)
+            .Where(n => n.FolderId == pile.FolderId)
             .Select(n => n.Id)
             .ToListAsync();
- 
-        // Filter requested IDs to only those in this folder
+     
         var validIds = request.NoteIds
             .Where(id => folderNoteIds.Contains(id))
             .ToHashSet();
- 
-        // Current note IDs in this pile
+     
         var currentIds = pile.PileNotes.Select(pn => pn.NoteId).ToHashSet();
- 
-        // Remove notes that were unchecked
+     
         var toRemove = pile.PileNotes.Where(pn => !validIds.Contains(pn.NoteId)).ToList();
         _context.PileNotes.RemoveRange(toRemove);
- 
-        // Add new notes (and remove them from any other pile in the same folder)
+     
         var toAdd = validIds.Except(currentIds).ToList();
         if (toAdd.Any())
         {
-            // Find other pile associations for these notes within the same folder
             var crossPileAssociations = await _context.PileNotes
                 .Where(pn => toAdd.Contains(pn.NoteId) && pn.Pile.FolderId == pile.FolderId && pn.PileId != pile.Id)
                 .ToListAsync();
             _context.PileNotes.RemoveRange(crossPileAssociations);
- 
+     
             var maxSortOrder = pile.PileNotes.Any() ? pile.PileNotes.Max(pn => pn.SortOrder) : 0;
             foreach (var noteId in toAdd)
             {
@@ -174,9 +182,9 @@ public class PilesController : Controller
                 });
             }
         }
- 
+     
         await _context.SaveChangesAsync();
- 
+     
         TempData["Success"] = "Pile notes updated.";
         return RedirectToAction("Details", "Folders", new { id = pile.FolderId });
     }
@@ -191,21 +199,23 @@ public class PilesController : Controller
     [HttpPost]
     public async Task<IActionResult> SavePileOrder([FromBody] SavePileOrderRequest request)
     {
-        var userId = _userManager.GetUserId(User);
-
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, request.FolderId);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
+ 
         var piles = await _context.Piles
-            .Include(p => p.Folder)
-            .Where(p => p.FolderId == request.FolderId && p.Folder.UserId == userId)
+            .Where(p => p.FolderId == request.FolderId)
             .ToListAsync();
-
+ 
         if (!piles.Any()) return NotFound();
-
+ 
         for (int i = 0; i < request.PileIds.Count; i++)
         {
             var pile = piles.FirstOrDefault(p => p.Id == request.PileIds[i]);
             if (pile != null) pile.SortOrder = i + 1;
         }
-
+ 
         await _context.SaveChangesAsync();
         return Json(new { success = true });
     }
@@ -220,21 +230,24 @@ public class PilesController : Controller
     [HttpPost]
     public async Task<IActionResult> SaveNoteOrder([FromBody] SaveNoteOrderRequest request)
     {
-        var userId = _userManager.GetUserId(User);
-
+        var userId = _userManager.GetUserId(User)!;
+ 
         var pile = await _context.Piles
-            .Include(p => p.Folder)
             .Include(p => p.PileNotes)
-            .FirstOrDefaultAsync(p => p.Id == request.PileId && p.Folder.UserId == userId);
-
+            .FirstOrDefaultAsync(p => p.Id == request.PileId);
+ 
         if (pile == null) return NotFound();
-
+ 
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, pile.FolderId);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
+ 
         for (int i = 0; i < request.NoteIds.Count; i++)
         {
             var pn = pile.PileNotes.FirstOrDefault(p => p.NoteId == request.NoteIds[i]);
             if (pn != null) pn.SortOrder = i + 1;
         }
-
+ 
         await _context.SaveChangesAsync();
         return Json(new { success = true });
     }
@@ -244,18 +257,20 @@ public class PilesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
  
         var pile = await _context.Piles
-            .Include(p => p.Folder)
             .Include(p => p.PileNotes)
-            .FirstOrDefaultAsync(p => p.Id == id && p.Folder.UserId == userId);
+            .FirstOrDefaultAsync(p => p.Id == id);
  
         if (pile == null) return NotFound();
  
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, pile.FolderId);
+        if (permission < EffectivePermission.Edit)
+            return Forbid();
+ 
         var folderId = pile.FolderId;
  
-        // Soft delete the pile
         pile.DeletedAt = DateTime.UtcNow;
  
         await _context.SaveChangesAsync();
@@ -268,16 +283,19 @@ public class PilesController : Controller
     [HttpGet]
     public async Task<IActionResult> Export(int id)
     {
-        var userId = _userManager.GetUserId(User);
-
+        var userId = _userManager.GetUserId(User)!;
+ 
         var pile = await _context.Piles
-            .Include(p => p.Folder)
             .Include(p => p.PileNotes.OrderBy(pn => pn.SortOrder))
             .ThenInclude(pn => pn.Note)
-            .FirstOrDefaultAsync(p => p.Id == id && p.Folder.UserId == userId);
-
+            .FirstOrDefaultAsync(p => p.Id == id);
+ 
         if (pile == null) return NotFound();
-
+ 
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, pile.FolderId);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+ 
         var model = new PileExportModel
         {
             PileName = pile.Name,
@@ -289,11 +307,11 @@ public class PilesController : Controller
                 })
                 .ToList()
         };
-
+ 
         var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_PileExport.cshtml", model);
         var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
         var filename = $"{FileNameSanitizer.Sanitize(pile.Name)}.pdf";
-
+ 
         return File(pdfBytes, "application/pdf", filename);
     }
 }

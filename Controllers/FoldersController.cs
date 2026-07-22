@@ -16,16 +16,19 @@ public class FoldersController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RazorViewRenderer _viewRenderer;
     private readonly PdfService _pdfService;
+    private readonly IPermissionService _permissionService;
     
     public FoldersController(AppDbContext context, 
         UserManager<ApplicationUser> userManager,
         RazorViewRenderer viewRenderer,
-        PdfService pdfService)
+        PdfService pdfService,
+        IPermissionService permissionService)
     {
         _context = context;
         _userManager = userManager;
         _viewRenderer = viewRenderer;
         _pdfService = pdfService;
+        _permissionService = permissionService;
     }
     
     [HttpGet]
@@ -96,11 +99,12 @@ public class FoldersController : Controller
             return View(model);
         }
  
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, model.Id);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
  
-        var folder = await _context.Folders
-            .FirstOrDefaultAsync(f => f.Id == model.Id && f.UserId == userId);
- 
+        var folder = await _context.Folders.FirstOrDefaultAsync(f => f.Id == model.Id);
         if (folder == null) return NotFound();
  
         folder.Name = model.Name;
@@ -109,37 +113,37 @@ public class FoldersController : Controller
  
         await _context.SaveChangesAsync();
  
-        return RedirectToAction("Details", new{id = model.Id});
+        return RedirectToAction("Details", new { id = model.Id });
     }
     
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
-        var userId = _userManager.GetUserId(User);
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, id);
+        if (permission != EffectivePermission.Owner)
+            return Forbid();
  
         var folder = await _context.Folders
             .Include(f => f.Piles)
             .Include(f => f.Notes)
-            .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+            .FirstOrDefaultAsync(f => f.Id == id);
  
         if (folder == null) return NotFound();
  
         var now = DateTime.UtcNow;
  
-        // Soft delete all notes in this folder
         foreach (var note in folder.Notes)
         {
             note.DeletedAt = now;
         }
  
-        // Soft delete all piles in this folder
         foreach (var pile in folder.Piles)
         {
             pile.DeletedAt = now;
         }
  
-        // Soft delete the folder itself
         folder.DeletedAt = now;
  
         await _context.SaveChangesAsync();
@@ -151,27 +155,44 @@ public class FoldersController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
-        var userId = _userManager.GetUserId(User);
- 
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, id);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+     
         var folder = await _context.Folders
+            .Include(f => f.User)
             .Include(f => f.Piles)
                 .ThenInclude(p => p.PileNotes)
                     .ThenInclude(pn => pn.Note)
-                        .ThenInclude(n=>n.NoteTags)
-                            .ThenInclude(nt=>nt.Tag)
+                        .ThenInclude(n => n.NoteTags)
+                            .ThenInclude(nt => nt.Tag)
             .Include(f => f.Notes)
                 .ThenInclude(n => n.NoteTags)
                     .ThenInclude(nt => nt.Tag)
-            .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
- 
+            .FirstOrDefaultAsync(f => f.Id == id);
+     
         if (folder == null) return NotFound();
- 
-        // Collect all note IDs that are in any pile (to exclude from loose notes)
+     
+        var isOwner = permission == EffectivePermission.Owner;
+     
         var pileNoteIds = folder.Piles
             .SelectMany(p => p.PileNotes)
             .Select(pn => pn.NoteId)
             .ToHashSet();
- 
+     
+        // Per-user tags: each viewer only sees tags THEY own on the notes.
+        List<TagListViewModel> MapUserTags(Note n) => n.NoteTags
+            .Where(nt => nt.Tag.UserId == userId)
+            .Select(nt => new TagListViewModel
+            {
+                Id = nt.Tag.Id,
+                Name = nt.Tag.Name,
+                Color = nt.Tag.Color
+            })
+            .OrderBy(t => t.Name)
+            .ToList();
+     
         PileDetailViewModel MapPile(Pile p) => new()
         {
             Id = p.Id,
@@ -188,19 +209,11 @@ public class FoldersController : Controller
                     Title = pn.Note.Title,
                     SortOrder = pn.SortOrder,
                     UpdatedAt = pn.Note.UpdatedAt,
-                    Tags = pn.Note.NoteTags
-                        .Select(nt => new TagListViewModel
-                        {
-                            Id = nt.Tag.Id,
-                            Name = nt.Tag.Name,
-                            Color = nt.Tag.Color
-                        })
-                        .OrderBy(t=>t.Name)
-                        .ToList()
+                    Tags = MapUserTags(pn.Note)
                 })
                 .ToList()
         };
- 
+     
         var model = new FolderDetailsViewModel
         {
             Id = folder.Id,
@@ -228,19 +241,15 @@ public class FoldersController : Controller
                     Content = n.Content,
                     CreatedAt = n.CreatedAt,
                     UpdatedAt = n.UpdatedAt,
-                    Tags = n.NoteTags
-                        .Select(nt => new TagListViewModel
-                        {
-                            Id = nt.Tag.Id,
-                            Name = nt.Tag.Name,
-                            Color = nt.Tag.Color
-                        })
-                        .OrderBy(t => t.Name)
-                        .ToList()
+                    Tags = MapUserTags(n)
                 })
-                .ToList()
+                .ToList(),
+     
+            CurrentUserPermission = permission.ToString(),
+            IsOwner = isOwner,
+            OwnerName = folder.User.DisplayName
         };
- 
+     
         return View(model);
     }
     
@@ -259,55 +268,56 @@ public class FoldersController : Controller
     [HttpGet]
     public async Task<IActionResult> Export(int id)
     {
-        var userId = _userManager.GetUserId(User);
-
+        var userId = _userManager.GetUserId(User)!;
+        var permission = await _permissionService.GetFolderPermissionAsync(userId, id);
+        if (permission == EffectivePermission.None)
+            return Forbid();
+     
         var folder = await _context.Folders
             .Include(f => f.Notes)
             .Include(f => f.Piles)
                 .ThenInclude(p => p.PileNotes.OrderBy(pn => pn.SortOrder))
                     .ThenInclude(pn => pn.Note)
-            .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
-
+            .FirstOrDefaultAsync(f => f.Id == id);
+     
         if (folder == null) return NotFound();
-
+     
         using var memoryStream = new MemoryStream();
         using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
         {
-            // Loose notes (not in any pile) — root level
             var pileNoteIds = folder.Piles.SelectMany(p => p.PileNotes).Select(pn => pn.NoteId).ToHashSet();
             var looseNotes = folder.Notes.Where(n => !pileNoteIds.Contains(n.Id)).ToList();
-
+     
             foreach (var note in looseNotes)
             {
                 var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_NoteExport.cshtml",
                     new NoteExportModel { Title = note.Title, Content = note.Content });
                 var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
                 var entryName = $"{FileNameSanitizer.Sanitize(note.Title)}.pdf";
-
+     
                 var entry = archive.CreateEntry(entryName);
                 using var entryStream = entry.Open();
                 await entryStream.WriteAsync(pdfBytes);
             }
-
-            // Piles — each becomes a subfolder containing its notes as PDFs
+     
             foreach (var pile in folder.Piles)
             {
                 var pileFolder = FileNameSanitizer.Sanitize(pile.Name);
-
+     
                 foreach (var pn in pile.PileNotes)
                 {
                     var html = await _viewRenderer.RenderAsync("/Views/Shared/Export/_NoteExport.cshtml",
                         new NoteExportModel { Title = pn.Note.Title, Content = pn.Note.Content });
                     var pdfBytes = await _pdfService.HtmlToPdfAsync(html);
                     var entryName = $"{pileFolder}/{FileNameSanitizer.Sanitize(pn.Note.Title)}.pdf";
-
+     
                     var entry = archive.CreateEntry(entryName);
                     using var entryStream = entry.Open();
                     await entryStream.WriteAsync(pdfBytes);
                 }
             }
         }
-
+     
         memoryStream.Position = 0;
         var zipFilename = $"{FileNameSanitizer.Sanitize(folder.Name)}.zip";
         return File(memoryStream.ToArray(), "application/zip", zipFilename);
