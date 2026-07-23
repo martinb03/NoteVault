@@ -48,7 +48,17 @@ SELECT
     ts_headline('english', regexp_replace(coalesce(n.""Content"", ''), '<[^>]*>', ' ', 'g'), to_tsquery('english', @q), 'MaxWords=20, MinWords=10') AS ""Snippet""
 FROM ""Notes"" n
 LEFT JOIN ""Folders"" f ON f.""Id"" = n.""FolderId""
-WHERE n.""UserId"" = @userId
+WHERE (
+    n.""UserId"" = @userId
+    OR EXISTS (
+        SELECT 1 FROM ""NoteShares"" ns
+        WHERE ns.""NoteId"" = n.""Id"" AND ns.""SharedWithUserId"" = @userId
+    )
+    OR (n.""FolderId"" IS NOT NULL AND EXISTS (
+        SELECT 1 FROM ""FolderShares"" fs
+        WHERE fs.""FolderId"" = n.""FolderId"" AND fs.""SharedWithUserId"" = @userId
+    ))
+)
   AND n.""DeletedAt"" IS NULL
   AND n.""SearchVector"" @@ to_tsquery('english', @q)
   AND (
@@ -108,7 +118,8 @@ LIMIT 3
         var results = await RunSearch(q, tagIds, folderId, dateFrom, dateTo, dateType, sort, userId!);
  
         var availableFolders = await _context.Folders
-            .Where(f => f.UserId == userId)
+            .Where(f => f.UserId == userId
+                        || _context.FolderShares.Any(fs => fs.FolderId == f.Id && fs.SharedWithUserId == userId))
             .OrderBy(f => f.Name)
             .Select(f => new FolderSelectItem { Id = f.Id, Name = f.Name })
             .ToListAsync();
@@ -211,10 +222,23 @@ SELECT
     {titleExpr} AS ""Title"",
     f.""Name"" AS ""FolderName"",
     {snippetExpr} AS ""Snippet"",
-    n.""UpdatedAt"" AS ""UpdatedAt""
+    n.""UpdatedAt"" AS ""UpdatedAt"",
+    u.""DisplayName"" AS ""OwnerName"",
+    (n.""UserId"" <> @userId) AS ""IsShared""
 FROM ""Notes"" n
 LEFT JOIN ""Folders"" f ON f.""Id"" = n.""FolderId""
-WHERE n.""UserId"" = @userId
+LEFT JOIN ""AspNetUsers"" u ON u.""Id"" = n.""UserId""
+WHERE (
+    n.""UserId"" = @userId
+    OR EXISTS (
+        SELECT 1 FROM ""NoteShares"" ns
+        WHERE ns.""NoteId"" = n.""Id"" AND ns.""SharedWithUserId"" = @userId
+    )
+    OR (n.""FolderId"" IS NOT NULL AND EXISTS (
+        SELECT 1 FROM ""FolderShares"" fs
+        WHERE fs.""FolderId"" = n.""FolderId"" AND fs.""SharedWithUserId"" = @userId
+    ))
+)
   AND n.""DeletedAt"" IS NULL
   {matchClause}
   AND (
@@ -260,8 +284,8 @@ LIMIT 50
         // Fetch tags for all returned notes in one query
         var noteIds = rawResults.Select(r => r.Id).ToList();
         var tagsByNote = await _context.NoteTags
-            .Where(nt => noteIds.Contains(nt.NoteId))
             .Include(nt => nt.Tag)
+            .Where(nt => noteIds.Contains(nt.NoteId) && nt.Tag.UserId == userId)   // Current user filter
             .ToListAsync();
  
         var tagMap = tagsByNote
@@ -283,6 +307,8 @@ LIMIT 50
             FolderName = r.FolderName,
             Snippet = r.Snippet ?? "",
             UpdatedAt = r.UpdatedAt,
+            OwnerName =  r.OwnerName,
+            IsShared = r.IsShared,
             Tags = tagMap.TryGetValue(r.Id, out var tags) ? tags : new List<TagListViewModel>()
         }).ToList();
     }
@@ -294,6 +320,8 @@ LIMIT 50
         public string? FolderName { get; set; }
         public string? Snippet { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public string OwnerName { get; set; } = string.Empty;
+        public bool IsShared { get; set; }
     }
     
 }

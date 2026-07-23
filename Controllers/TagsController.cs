@@ -20,7 +20,7 @@ public class TagsController : Controller
         _userManager = userManager;
     }
  
-    // Tags List
+    // ------- Tags List -------
     [HttpGet]
     public async Task<IActionResult> Index()
     {
@@ -41,7 +41,7 @@ public class TagsController : Controller
         return View(tags);
     }
  
-    // Create Tag
+    // ------- Create Tag -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateTagViewModel model)
@@ -79,7 +79,7 @@ public class TagsController : Controller
         return RedirectToAction("Index");
     }
  
-    // Edit Tag
+    // ------- Edit Tag -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditTagViewModel model)
@@ -121,7 +121,7 @@ public class TagsController : Controller
         return RedirectToAction("Index");
     }
  
-    // Delete Tag
+    //------- Delete Tag -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -141,7 +141,7 @@ public class TagsController : Controller
         return RedirectToAction("Index");
     }
     
-    // Tag Details (filtered notes)
+    //------- Tag Details (filtered notes) -------
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
@@ -153,9 +153,13 @@ public class TagsController : Controller
         if (tag == null) return NotFound();
  
         var notes = await _context.Notes
-            .Where(n => n.UserId == userId && n.NoteTags.Any(nt => nt.TagId == id))
+            .Where(n => n.NoteTags.Any(nt => nt.TagId == id)
+                        && (n.UserId == userId
+                            || _context.NoteShares.Any(ns => ns.NoteId == n.Id && ns.SharedWithUserId == userId)
+                            || (n.FolderId != null && _context.FolderShares.Any(fs =>
+                                fs.FolderId == n.FolderId && fs.SharedWithUserId == userId))))
             .Include(n => n.NoteTags)
-                .ThenInclude(nt => nt.Tag)
+            .ThenInclude(nt => nt.Tag)
             .OrderByDescending(n => n.UpdatedAt)
             .Select(n => new NoteListViewModel
             {
@@ -165,14 +169,14 @@ public class TagsController : Controller
                 CreatedAt = n.CreatedAt,
                 UpdatedAt = n.UpdatedAt,
                 Tags = n.NoteTags
-                    .Where(nt=>nt.TagId !=id)
-                    .Select(nt=> new TagListViewModel
+                    .Where(nt => nt.TagId != id && nt.Tag.UserId == userId)   // own tags only
+                    .Select(nt => new TagListViewModel
                     {
                         Id = nt.Tag.Id,
                         Name = nt.Tag.Name,
                         Color = nt.Tag.Color
                     })
-                    .OrderBy(t=>t.Name)
+                    .OrderBy(t => t.Name)
                     .ToList()
             })
             .ToListAsync();
@@ -188,7 +192,7 @@ public class TagsController : Controller
         return View(model);
     }
     
-    // Create Tag (AJAX)
+    // ------- Create Tag (AJAX) -------
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateAjax([FromForm] CreateTagViewModel model)

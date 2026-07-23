@@ -9,6 +9,7 @@ public class DashboardViewModel
     public List<DashboardNoteDto> FrequentlyVisited { get; set; } = new();
     public List<DashboardNoteDto> RecentlyCreated { get; set; } = new();
     public DashboardNoteDto? Random { get; set; }
+    public List<SharedItemViewModel> RecentlyShared { get; set; } = new();
 }
  
 public class DashboardNoteDto

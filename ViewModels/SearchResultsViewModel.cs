@@ -8,6 +8,9 @@ public class SearchResultRowDto
     public string Snippet { get; set; } = string.Empty;
     public DateTime UpdatedAt { get; set; }
     public List<TagListViewModel> Tags { get; set; } = new();
+    //Sharing
+    public string OwnerName { get; set; } = string.Empty;
+    public bool IsShared { get; set; }
 }
  
 public class SearchResultsViewModel
