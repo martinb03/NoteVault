@@ -96,6 +96,10 @@
                        class="nav-link nv-link @(currentController == "Notes" ? "active" : "")">Notes</a>
                 </li>
                 <li class="nav-item">
+                    <a asp-controller="Shares" asp-action="SharedWithMe"
+                       class="nav-link nv-link @(currentController == "Shares" ? "active" : "")">Shares</a>
+                </li>
+                <li class="nav-item">
                     <a asp-controller="Tags" asp-action="Index"
                        class="nav-link nv-link @(currentController == "Tags" ? "active" : "")">Tags</a>
                 </li>

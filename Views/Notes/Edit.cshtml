@@ -20,6 +20,8 @@ crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
 crumbs.Add(new(Model.Title, Url.Action("Details", "Notes", new { id = Model.Id, from = fromNotes ? "notes" : null })));
 crumbs.Add(new("Edit"));
 ViewData["Breadcrumb"] = crumbs;
+var isLocked = Model.LockHeldByUserId != null;
+var lockLost = Context.Request.Query["lockLost"] == "1";
 }
 
 <!-- Quill CSS -->
@@ -37,56 +39,99 @@ ViewData["Breadcrumb"] = crumbs;
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     }
+    
+    @if (lockLost && isLocked)
+    {
+        <div class="nv-alert alert alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill alert-icon"></i>
+            <span>@Model.LockHeldByName took over editing this note. Any changes from the last few seconds may not have been saved.</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
 
     <!-- Status bar -->
     <div class="edit-status-bar">
-        <div class="save-status" id="saveStatus">
-            <i class="bi bi-cloud-check"></i>
-            <span id="saveStatusText">
-                Last saved: <partial name="_LocalDate" model="Model.UpdatedAt"/>
-            </span>
-        </div>
-        <button class="btn btn-pill btn-pill-outline btn-sm" data-bs-toggle="modal" data-bs-target="#saveVersionModal">
-            <i class="bi bi-bookmark"></i> Save Version
-        </button>
-    </div>
-
-    <!-- Inline title -->
-    <input type="text" id="noteTitle" class="note-title-input" value="@Model.Title" placeholder="Untitled note" />
-
-    <!-- Quill editor wrapper -->
-    <div class="editor-wrap">
-        <div id="editor">@Html.Raw(Model.Content)</div>
-    </div>
-</div>
-
-<!-- Save Version Modal -->
-<div class="modal fade nv-modal" id="saveVersionModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-bookmark"></i> Save Version
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        @if (isLocked)
+        {
+            <div class="save-status">
+                <i class="bi bi-lock"></i>
+                <span>@Model.LockHeldByName is currently editing</span>
             </div>
-            <form asp-action="SaveVersion" method="post" id="saveVersionForm" class="nv-form">
-                <input type="hidden" name="id" value="@Model.Id" />
-                <div class="modal-body">
-                    <label class="form-label">Version Title <span class="text-muted" style="font-weight: normal; text-transform: none; letter-spacing: 0;">(optional)</span></label>
-                    <input type="text" name="name" class="form-control" placeholder="e.g. Before refactor" />
-                    <p class="text-muted small mt-2 mb-0">Leave blank to save without a title.</p>
+            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-pill btn-pill-outline btn-sm">
+                <i class="bi bi-arrow-left"></i> Back to note
+            </a>
+        }
+        else
+        {
+            <div class="save-status" id="saveStatus">
+                <i class="bi bi-cloud-check"></i>
+                <span id="saveStatusText">
+                    Last saved: <partial name="_LocalDate" model="Model.UpdatedAt"/>
+                </span>
+            </div>
+            <button class="btn btn-pill btn-pill-outline btn-sm" data-bs-toggle="modal" data-bs-target="#saveVersionModal">
+                <i class="bi bi-bookmark"></i> Save Version
+            </button>
+        }
+    </div>
+ 
+    <!-- Inline title -->
+    <input type="text" id="noteTitle" class="note-title-input" value="@Model.Title"
+           placeholder="Untitled note" @(isLocked ? "readonly" : "") />
+ 
+    @if (isLocked)
+    {
+        <!-- Read-only content with overlay -->
+        <div class="editor-wrap editor-locked">
+            <div class="editor-locked-content">
+                @Html.Raw(Model.Content)
+            </div>
+            <div class="editor-locked-overlay">
+                <i class="bi bi-lock"></i>
+                <div class="editor-locked-title">@Model.LockHeldByName is currently editing</div>
+                <div class="editor-locked-sub">
+                    You're seeing the last saved version. Try again once they're done.
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-pill btn-pill-outline" id="skipTitleBtn">Skip Title</button>
-                    <button type="submit" class="btn btn-pill btn-pill-primary">Save</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Quill editor wrapper -->
+        <div class="editor-wrap">
+            <div id="editor">@Html.Raw(Model.Content)</div>
+        </div>
+    }
+</div>
+@if (!isLocked)
+{
+    <!-- Save Version Modal -->
+    <div class="modal fade nv-modal" id="saveVersionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bookmark"></i> Save Version
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-            </form>
+                <form asp-action="SaveVersion" method="post" id="saveVersionForm" class="nv-form">
+                    <input type="hidden" name="id" value="@Model.Id"/>
+                    <div class="modal-body">
+                        <label class="form-label">Version Title <span class="text-muted" style="font-weight: normal; text-transform: none; letter-spacing: 0;">(optional)</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Before refactor"/>
+                        <p class="text-muted small mt-2 mb-0">Leave blank to save without a title.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-pill btn-pill-outline" id="skipTitleBtn">Skip Title</button>
+                        <button type="submit" class="btn btn-pill btn-pill-primary">Save</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
-
+}
 <style>
     .note-edit-page {
         max-width: 1100px;
@@ -219,9 +264,47 @@ ViewData["Breadcrumb"] = crumbs;
         border-radius: 4px;
         font-family: 'Courier New', monospace;
     }
+    /* ------- Locked (someone else is editing) ------- */
+    .editor-locked { position: relative; }
+    .editor-locked-content {
+        padding: 1.25rem;
+        min-height: 320px;
+        filter: blur(2px);
+        opacity: 0.45;
+        pointer-events: none;
+        user-select: none;
+    }
+    .editor-locked-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        text-align: center;
+        padding: 1.5rem;
+    }
+    .editor-locked-overlay > i {
+        font-size: 1.8rem;
+        color: var(--brand-orange);
+        margin-bottom: 0.2rem;
+    }
+    .editor-locked-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .editor-locked-sub {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        max-width: 320px;
+    }
 </style>
 <!-- Quill JS -->
 <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+@if(!isLocked)
+{
 <script>
     const quill = new Quill('#editor', {
         theme: 'snow',
@@ -245,6 +328,8 @@ ViewData["Breadcrumb"] = crumbs;
     const saveStatusText = document.getElementById('saveStatusText');
     let saveTimeout;
     let isDirty = false;
+    let lastSavedAt = Date.now();
+    const MAX_SAVE_INTERVAL = 15000;  // force a checkpoint if typing never pauses
 
     function getToken() {
         return document.querySelector('input[name="__RequestVerificationToken"]')?.value;
@@ -252,9 +337,9 @@ ViewData["Breadcrumb"] = crumbs;
 
     // ── Acquire lock on page load ──
     (async function acquireLock() {
-        const token = getToken();
         const formData = new FormData();
-        if (token) formData.append('__RequestVerificationToken', token);
+        const t = getToken();
+        if (t) formData.append('__RequestVerificationToken', t);
 
         try {
             const res = await fetch(`/Notes/AcquireLock/${noteId}`, {
@@ -263,8 +348,9 @@ ViewData["Breadcrumb"] = crumbs;
             });
             const result = await res.json();
             if (!result.acquired) {
-                alert(`${result.heldByName} is currently editing this note.`);
-                window.location.href = `/Notes/Details/${noteId}`;
+                // Someone claimed it between page render and now — reload
+                // so the server can render the locked state.
+                window.location.reload();
             }
         } catch (e) {
             console.error('Failed to acquire lock', e);
@@ -273,57 +359,29 @@ ViewData["Breadcrumb"] = crumbs;
 
     // ── Heartbeat every 60s ──
     setInterval(async () => {
-        const token = getToken();
         const formData = new FormData();
-        if (token) formData.append('__RequestVerificationToken', token);
-        await fetch(`/Notes/RefreshLock/${noteId}`, { method: 'POST', body: formData });
+        const t = getToken();
+        if (t) formData.append('__RequestVerificationToken', t);
+        try {
+            const res = await fetch(`/Notes/RefreshLock/${noteId}`, { method: 'POST', body: formData });
+            const result = await res.json();
+            if (!result.success) {
+                window.location.href = `/Notes/Edit/${noteId}?lockLost=1`;
+            }
+        } catch { /* transient network failure — try again next tick */ }
     }, 60000);
 
-    // ── Autosave debounced ──
-    function triggerAutoSave() {
+    // The actual save. Shared by the debounce, the ceiling, and forceSave.
+    async function doSave(useKeepalive = false) {
         clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(async () => {
-            saveStatus.classList.add('saving');
-            saveStatusText.textContent = 'Saving...';
-            try {
-                const response = await fetch('/Notes/AutoSave', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: noteId,
-                        title: titleInput.value || 'Untitled note',
-                        content: quill.root.innerHTML
-                    })
-                });
-                const result = await response.json();
-                if (!result.success) throw new Error();
-                isDirty = false;
-
-                const date = new Date(result.updatedAt);
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const year = date.getFullYear();
-                const hours = String(date.getHours()).padStart(2, '0');
-                const minutes = String(date.getMinutes()).padStart(2, '0');
-                saveStatusText.textContent = `Saved at ${hours}:${minutes}, ${day}/${month}/${year}`;
-            } catch {
-                saveStatusText.textContent = 'Save failed';
-            } finally {
-                saveStatus.classList.remove('saving');
-            }
-        }, 5000);
-    }
-
-    quill.on('text-change', () => { isDirty = true; triggerAutoSave(); });
-    titleInput.addEventListener('input', () => { isDirty = true; triggerAutoSave(); });
-
-    // ── Force save (on blur / navigation) ──
-    async function forceSave() {
         if (!isDirty) return;
-        clearTimeout(saveTimeout);
         isDirty = false;
+
+        saveStatus.classList.add('saving');
+        saveStatusText.textContent = 'Saving...';
+
         try {
-            await fetch('/Notes/AutoSave', {
+            const response = await fetch('/Notes/AutoSave', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -331,9 +389,53 @@ ViewData["Breadcrumb"] = crumbs;
                     title: titleInput.value || 'Untitled note',
                     content: quill.root.innerHTML
                 }),
-                keepalive: true
+                keepalive: useKeepalive
             });
-        } catch { /* swallow */ }
+
+            const result = await response.json();
+            if (!result.success) {
+                if (result.reason === 'lock_lost') {
+                    window.location.href = `/Notes/Edit/${noteId}?lockLost=1`;
+                    return;
+                }
+                throw new Error();
+            }
+
+            lastSavedAt = Date.now();
+
+            const date = new Date(result.updatedAt);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            saveStatusText.textContent = `Saved at ${hours}:${minutes}, ${day}/${month}/${year}`;
+        } catch {
+            // Failed save means the content wasn't persisted — keep it dirty
+            // so the next attempt retries instead of dropping the changes.
+            isDirty = true;
+            saveStatusText.textContent = 'Save failed';
+        } finally {
+            saveStatus.classList.remove('saving');
+        }
+    }
+
+    // Debounced trigger with a hard ceiling: continuous typing still
+    // checkpoints every MAX_SAVE_INTERVAL even without a pause.
+    function triggerAutoSave() {
+        clearTimeout(saveTimeout);
+        if (Date.now() - lastSavedAt > MAX_SAVE_INTERVAL) {
+            doSave();
+            return;
+        }
+        saveTimeout = setTimeout(doSave, 5000);
+    }
+
+    quill.on('text-change', () => { isDirty = true; triggerAutoSave(); });
+    titleInput.addEventListener('input', () => { isDirty = true; triggerAutoSave(); });
+
+    function forceSave() {
+        return doSave(true);
     }
 
     titleInput.addEventListener('blur', forceSave);
@@ -357,3 +459,4 @@ ViewData["Breadcrumb"] = crumbs;
         document.querySelector('#saveVersionForm input[name="name"]').value = '';
     });
 </script>
+}

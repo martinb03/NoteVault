@@ -14,6 +14,7 @@
     var isActiveForReorderNotes = activeReorderNotesPileId == pile.Id;
     var expanded = isActiveForManage || isActiveForReorderNotes;
     var canExpand = !reorderMode && (!activeReorderNotesPileId.HasValue || isActiveForReorderNotes);
+    var canEdit = (bool)(ViewData["CanEdit"] ??  false);
     var showMenu = !anyModeActive;
 
     var leftBorderStyle = pile.Color != null ? $"border-left: 4px solid {pile.Color};" : "";
@@ -59,47 +60,62 @@
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end nv-dropdown">
-                    <li>
-                        <a class="dropdown-item nv-dropdown-item"
-                           href="?manageNotes=@pile.Id">
-                            <i class="bi bi-check2-square"></i> Manage notes
-                        </a>
-                    </li>
-                    @if (pile.Notes.Any())
+                    @if (canEdit)
                     {
                         <li>
                             <a class="dropdown-item nv-dropdown-item"
-                               href="?reorderNotesInPile=@pile.Id">
-                                <i class="bi bi-arrow-down-up"></i> Reorder notes
+                               href="?manageNotes=@pile.Id">
+                                <i class="bi bi-check2-square"></i> Manage notes
                             </a>
                         </li>
                     }
-                    <li>
-                        <form asp-controller="Piles" asp-action="TogglePin" method="post" class="m-0">
-                            <input type="hidden" name="id" value="@pile.Id"/>
-                            <button type="submit" class="dropdown-item nv-dropdown-item">
-                                <i class="bi @(pile.IsPinned ? "bi-pin-angle" : "bi-pin")"></i>
-                                @(pile.IsPinned ? "Unpin" : "Pin")
+                    @if (canEdit)
+                    {
+                        @if (pile.Notes.Any())
+                        {
+                            <li>
+                                <a class="dropdown-item nv-dropdown-item"
+                                   href="?reorderNotesInPile=@pile.Id">
+                                    <i class="bi bi-arrow-down-up"></i> Reorder notes
+                                </a>
+                            </li>
+                        }
+                    }
+                    @if (canEdit)
+                    {
+                        <li>
+                            <form asp-controller="Piles" asp-action="TogglePin" method="post" class="m-0">
+                                <input type="hidden" name="id" value="@pile.Id"/>
+                                <button type="submit" class="dropdown-item nv-dropdown-item">
+                                    <i class="bi @(pile.IsPinned ? "bi-pin-angle" : "bi-pin")"></i>
+                                    @(pile.IsPinned ? "Unpin" : "Pin")
+                                </button>
+                            </form>
+                        </li>
+                    }
+                    @if (canEdit)
+                    {
+                        <li>
+                            <button class="dropdown-item nv-dropdown-item" data-bs-toggle="modal" data-bs-target="#editPileModal"
+                                    onclick="setEditPile(@pile.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(pile.Name).Trim('"'))', '@(pile.Color ?? "")', '@(pile.Icon ?? "")')">
+                                <i class="bi bi-pencil"></i> Edit
                             </button>
-                        </form>
-                    </li>
-                    <li>
-                        <button class="dropdown-item nv-dropdown-item" data-bs-toggle="modal" data-bs-target="#editPileModal"
-                                onclick="setEditPile(@pile.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(pile.Name).Trim('"'))', '@(pile.Color ?? "")', '@(pile.Icon ?? "")')">
-                            <i class="bi bi-pencil"></i> Edit
-                        </button>
-                    </li>
+                        </li>
+                    }
                     <li>
                         <a class="dropdown-item nv-dropdown-item" asp-controller="Piles" asp-action="Export" asp-route-id="@pile.Id">
                             <i class="bi bi-download"></i> Export
                         </a>
                     </li>
-                    <li>
-                        <button class="dropdown-item nv-dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deletePileModal"
-                                onclick="setDeletePile(@pile.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(pile.Name).Trim('"'))')">
-                            <i class="bi bi-trash"></i> Delete
-                        </button>
-                    </li>
+                    @if (canEdit)
+                    {
+                        <li>
+                            <button class="dropdown-item nv-dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deletePileModal"
+                                    onclick="setDeletePile(@pile.Id, '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(pile.Name).Trim('"'))')">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </li>
+                    }
                 </ul>
             </div>
         }

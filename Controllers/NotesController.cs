@@ -54,6 +54,7 @@ public class NotesController : Controller
                 CreatedAt = n.CreatedAt,
                 UpdatedAt = n.UpdatedAt,
                 Tags = n.NoteTags
+                    .Where(nt => nt.Tag.UserId == userId)
                     .Select(nt => new TagListViewModel
                     {
                         Id = nt.Tag.Id,

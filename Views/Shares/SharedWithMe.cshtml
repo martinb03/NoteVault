@@ -1,0 +1,295 @@
+@model NoteVault.ViewModels.SharedWithMePageViewModel
+
+@{
+    ViewData["Title"] = "Shared with me";
+    Layout = "_Layout";
+}
+
+<div class="shared-page">
+
+    <div class="notes-header">
+        <div class="notes-header-title">
+            <div class="accent-bar"></div>
+            <h1>Shared with me</h1>
+            <!-- All / Notes / Folders segmented control (client-side) -->
+            <div class="segmented-control" id="typeSegments">
+                <button type="button" class="segment active" data-type="all">All</button>
+                <button type="button" class="segment" data-type="Note">Notes</button>
+                <button type="button" class="segment" data-type="Folder">Folders</button>
+            </div>
+        </div>
+        <div class="inline-filter-wrap">
+            <i class="bi bi-search inline-filter-icon"></i>
+            <input type="text" id="sharedFilter" class="inline-filter-input" placeholder="Filter items..." autocomplete="off"/>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="nv-alert alert alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill alert-icon"></i>
+            <span>@TempData["Success"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <p>Nothing has been shared with you yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="shared-cols">
+
+            <!-- ── Sidebar filters ── -->
+            <aside class="shared-side">
+                <div class="soft-card">
+                    <div class="side-section-label">Filters</div>
+
+                    <label class="side-filter-label">Shared by</label>
+                    <select id="filterSharedBy" class="form-select form-select-sm mb-3">
+                        <option value="">Anyone</option>
+                        @foreach (var u in Model.SharedByOptions)
+                        {
+                            <option value="@u.UserId">@u.DisplayName</option>
+                        }
+                    </select>
+
+                    <label class="side-filter-label">Owned by</label>
+                    <select id="filterOwnedBy" class="form-select form-select-sm mb-3">
+                        <option value="">Anyone</option>
+                        @foreach (var u in Model.OwnedByOptions)
+                        {
+                            <option value="@u.UserId">@u.DisplayName</option>
+                        }
+                    </select>
+
+                    <label class="side-filter-label">Permission</label>
+                    <select id="filterPermission" class="form-select form-select-sm mb-3">
+                        <option value="">Any</option>
+                        <option value="View">View only</option>
+                        <option value="Edit">Edit</option>
+                        <option value="EditAndShare">Edit + Share</option>
+                    </select>
+
+                    <label class="side-filter-label">Date shared</label>
+                    <input type="date" id="filterDateFrom" class="form-control form-control-sm mb-2" title="From"/>
+                    <input type="date" id="filterDateTo" class="form-control form-control-sm mb-3" title="To"/>
+
+                    <button type="button" id="clearFilters" class="btn btn-pill btn-pill-outline btn-sm w-100">
+                        Clear filters
+                    </button>
+                </div>
+            </aside>
+
+            <!-- ── Item list ── -->
+            <main class="shared-main">
+                <div class="trash-list" id="sharedList">
+                    @foreach (var item in Model.Items)
+                    {
+                        var isNote = item.ItemType == "Note";
+                        var url = isNote
+                            ? Url.Action("Details", "Notes", new { id = item.Id })
+                            : Url.Action("Details", "Folders", new { id = item.Id });
+
+                        <a href="@url"
+                           class="trash-row text-decoration-none shared-row"
+                           data-type="@item.ItemType"
+                           data-shared-by="@item.SharedByUserId"
+                           data-owned-by="@item.OwnerUserId"
+                           data-permission="@item.Permission"
+                           data-shared-at="@item.SharedAt.ToString("yyyy-MM-dd")">
+                            <i class="bi @(isNote ? "bi-journal-text" : "bi-folder") row-icon"></i>
+                            <span class="row-title">@item.Title</span>
+                            <span class="shared-by-chip">
+                                <i class="bi bi-person"></i> Shared by @item.SharedByName
+                            </span>
+                            <span class="perm-badge perm-@item.Permission.ToLower()">
+                                @(item.Permission == "EditAndShare" ? "Edit + Share"
+                                    : item.Permission == "View" ? "View only"
+                                    : item.Permission)
+                            </span>
+                            @if (isNote && item.PrivateTags.Count > 0)
+                            {
+                                <span class="tags-cell">
+                                    @await Html.PartialAsync("_NoteTagsInline", item.PrivateTags)
+                                </span>
+                            }
+                            <span class="row-meta ms-auto">
+                                <partial name="_LocalDate" model="item.UpdatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
+                            </span>
+                        </a>
+                    }
+                </div>
+
+                <div class="empty-state" id="noSharedMatches" style="display: none;">
+                    <i class="bi bi-search"></i>
+                    <p>No shared items match your filters.</p>
+                </div>
+            </main>
+        </div>
+    }
+</div>
+
+<style>
+    .shared-page {
+        max-width: 1300px;
+        margin: 1rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .shared-cols {
+        display: flex;
+        gap: 1.25rem;
+        align-items: flex-start;
+    }
+    .shared-side {
+        flex: 0 0 230px;
+        position: sticky;
+        top: 1rem;
+    }
+    .shared-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .side-section-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid var(--border-soft);
+        margin-bottom: 0.75rem;
+    }
+    .side-filter-label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 0.25rem;
+    }
+
+    /* Row layout */
+    .shared-page .trash-row .row-title {
+        flex-grow: 0;
+        flex-shrink: 0;
+        width: 200px;
+        margin-right: 0.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .perm-badge {
+        flex-shrink: 0;
+        padding: 0.15rem 0.6rem;
+        border-radius: var(--radius-pill);
+        font-size: 0.72rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    .perm-view {
+        background-color: var(--surface-warm);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-warm);
+    }
+    .perm-edit {
+        background-color: var(--hover-warm);
+        color: var(--brand-orange);
+        border: 1px solid var(--brand-orange);
+    }
+    .perm-editandshare {
+        background-color: var(--brand-orange);
+        color: var(--text-on-brand);
+        border: 1px solid var(--brand-orange);
+    }
+
+    .shared-page .tags-cell {
+        flex-shrink: 1;
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+    }
+
+    @@media (max-width: 992px) {
+        .shared-cols { flex-direction: column; }
+        .shared-side { flex: 1 1 100%; width: 100%; position: static; }
+    }
+</style>
+
+<script>
+    (function () {
+        const rows = Array.from(document.querySelectorAll('.shared-row'));
+        if (rows.length === 0) return;
+
+        const segments = document.querySelectorAll('#typeSegments .segment');
+        const filterInput = document.getElementById('sharedFilter');
+        const sharedBySel = document.getElementById('filterSharedBy');
+        const ownedBySel = document.getElementById('filterOwnedBy');
+        const permSel = document.getElementById('filterPermission');
+        const dateFrom = document.getElementById('filterDateFrom');
+        const dateTo = document.getElementById('filterDateTo');
+        const clearBtn = document.getElementById('clearFilters');
+        const listEl = document.getElementById('sharedList');
+        const noMatchesEl = document.getElementById('noSharedMatches');
+
+        let activeType = 'all';
+
+        function applyFilters() {
+            const q = filterInput.value.trim().toLowerCase();
+            const sharedBy = sharedBySel.value;
+            const ownedBy = ownedBySel.value;
+            const perm = permSel.value;
+            const from = dateFrom.value;   // yyyy-mm-dd — string compare works
+            const to = dateTo.value;
+
+            let visible = 0;
+
+            rows.forEach(row => {
+                const matchesType = activeType === 'all' || row.dataset.type === activeType;
+                const matchesQuery = !q || row.querySelector('.row-title').textContent.trim().toLowerCase().includes(q);
+                const matchesSharedBy = !sharedBy || row.dataset.sharedBy === sharedBy;
+                const matchesOwnedBy = !ownedBy || row.dataset.ownedBy === ownedBy;
+                const matchesPerm = !perm || row.dataset.permission === perm;
+                const matchesFrom = !from || row.dataset.sharedAt >= from;
+                const matchesTo = !to || row.dataset.sharedAt <= to;
+
+                const show = matchesType && matchesQuery && matchesSharedBy
+                    && matchesOwnedBy && matchesPerm && matchesFrom && matchesTo;
+
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+
+            listEl.style.display = visible === 0 ? 'none' : '';
+            noMatchesEl.style.display = visible === 0 ? 'block' : 'none';
+        }
+
+        segments.forEach(seg => {
+            seg.addEventListener('click', () => {
+                segments.forEach(s => s.classList.remove('active'));
+                seg.classList.add('active');
+                activeType = seg.dataset.type;
+                applyFilters();
+            });
+        });
+
+        [filterInput, sharedBySel, ownedBySel, permSel, dateFrom, dateTo]
+            .forEach(el => el.addEventListener('input', applyFilters));
+
+        clearBtn.addEventListener('click', () => {
+            filterInput.value = '';
+            sharedBySel.value = '';
+            ownedBySel.value = '';
+            permSel.value = '';
+            dateFrom.value = '';
+            dateTo.value = '';
+            applyFilters();
+        });
+    })();
+</script>

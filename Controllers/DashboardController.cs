@@ -71,51 +71,7 @@ public class DashboardController : Controller
             .Select(n => MapToDto(n))
             .ToListAsync();
  
-        // ── Random ──
-        model.Random = await GetRandomNote(userId!);
- 
         return View(model);
-    }
- 
-    // ══════════════ Shuffle Random (AJAX) ════════════════
-    [HttpGet]
-    public async Task<IActionResult> ShuffleRandom()
-    {
-        var userId = _userManager.GetUserId(User);
-        var note = await GetRandomNote(userId!);
-        if (note == null) return Json(new { success = false });
- 
-        return Json(new
-        {
-            success = true,
-            note = new
-            {
-                id = note.Id,
-                title = note.Title,
-                contentPreview = note.ContentPreview,
-                folderName = note.FolderName,
-                tags = note.Tags.Select(t => new { id = t.Id, name = t.Name, color = t.Color })
-            }
-        });
-    }
- 
-    private async Task<DashboardNoteDto?> GetRandomNote(string userId)
-    {
-        var totalCount = await _context.Notes.CountAsync(n => n.UserId == userId);
-        if (totalCount == 0) return null;
- 
-        var skip = new Random().Next(totalCount);
- 
-        var note = await _context.Notes
-            .Where(n => n.UserId == userId)
-            .Include(n => n.Folder)
-            .Include(n => n.NoteTags).ThenInclude(nt => nt.Tag)
-            .OrderBy(n => n.Id)
-            .Skip(skip)
-            .Take(1)
-            .FirstOrDefaultAsync();
- 
-        return note == null ? null : MapToDto(note);
     }
  
     private static DashboardNoteDto MapToDto(Note n) => new()

@@ -8,6 +8,7 @@ public class ShareModalViewModel
     public bool IsCurrentUserOwner { get; set; }
     public string CurrentUserPermission { get; set; } = string.Empty;
     public List<ShareEntryViewModel> Shares { get; set; } = new();
+    public string OwnerUserId { get; set; } = string.Empty;
 }
 
 public class ShareEntryViewModel

@@ -14,6 +14,10 @@ int? activeReorderNotesPileId = int.TryParse(reorderNotesPileId, out var rp) ? r
 bool manageMode = activeManagePileId.HasValue;
 bool reorderMode = reorderPilesMode;
 bool anyModeActive = manageMode || reorderMode || activeReorderNotesPileId.HasValue;
+var perm = Model.CurrentUserPermission;
+var canEdit = perm is "Edit" or "EditAndShare" or "Owner";
+var canShare = perm is "EditAndShare" or "Owner";
+var isOwner = Model.IsOwner;
 
 var activeManagePile = activeManagePileId.HasValue
 ? Model.PinnedPiles.Concat(Model.Piles).FirstOrDefault(p => p.Id == activeManagePileId.Value)
@@ -55,7 +59,17 @@ new(Model.Name)
                     @(string.IsNullOrEmpty(Model.Description) ? "No description." : Model.Description)
                 </p>
             </div>
-
+            
+            @if (!isOwner)
+            {
+                <div class="folder-info-section">
+                    <div class="folder-info-label">Owned by</div>
+                    <p class="folder-info-value">
+                        <i class="bi bi-person"></i> @Model.OwnerName
+                    </p>
+                </div>
+            }
+            
             <div class="folder-info-section">
                 <div class="folder-info-label">Created</div>
                 <p class="folder-info-value">
@@ -115,6 +129,7 @@ new(Model.Name)
                 @await Html.PartialAsync("_FolderPile", new ViewDataDictionary(ViewData)
                 {
                 { "Pile", pile },
+                { "CanEdit", canEdit },
                 { "IsPinned", true },
                 { "ActiveManagePileId", activeManagePileId },
                 { "ActiveReorderNotesPileId", activeReorderNotesPileId },
@@ -198,17 +213,22 @@ new(Model.Name)
             <!-- Empty state -->
             @if (!Model.PinnedPiles.Any() && !Model.Piles.Any() && !Model.Notes.Any())
             {
-            <div class="empty-state">
-                <i class="bi bi-folder2-open"></i>
-                <p>This folder is empty.</p>
-                <p style="font-size: 0.85rem; opacity: 0.8;">Create a note or pile to get started.</p>
-            </div>
+                <div class="empty-state">
+                    <i class="bi bi-folder2-open"></i>
+                    <p>This folder is empty.</p>
+                    @if (canEdit)
+                    {
+                        <p style="font-size: 0.85rem; opacity: 0.8;">Create a note or pile to get started.</p>
+                    }
+                </div>
             }
         </main>
 
         <!-- ═══════ Right Sidebar: Actions ═══════ -->
         <aside class="folder-right">
             <div class="action-list">
+                @if (canEdit)
+                {
                 <button class="action-item @(anyModeActive ? "disabled" : "")"
                         data-bs-toggle="modal" data-bs-target="#createNoteModal" disabled="@anyModeActive">
                     <i class="bi bi-journal-plus"></i> New Note
@@ -217,22 +237,46 @@ new(Model.Name)
                         data-bs-toggle="modal" data-bs-target="#createPileModal" disabled="@anyModeActive">
                     <i class="bi bi-collection"></i> New Pile
                 </button>
+                }
+                @if (isOwner)
+                {
                 <button class="action-item @(anyModeActive ? "disabled" : "")"
                         data-bs-toggle="modal" data-bs-target="#editFolderModal" disabled="@anyModeActive">
                     <i class="bi bi-pencil"></i> Edit
                 </button>
+                }
+                @if (canShare)
+                {
+                <button class="action-item @(anyModeActive ? "disabled" : "")"
+                        data-bs-toggle="modal" data-bs-target="#shareModal" disabled="@anyModeActive">
+                    <i class="bi bi-people"></i> Share
+                </button>
+                }
+                @if (canEdit)
+                {
                 <a asp-action="Details" asp-route-id="@Model.Id" asp-route-reorderPiles="1"
                    class="action-item @(anyModeActive ? "disabled pe-none" : "")">
                     <i class="bi bi-arrow-down-up"></i> Reorder Piles
                 </a>
+                }
                 <a asp-action="Export" asp-route-id="@Model.Id"
                    class="action-item @(anyModeActive ? "disabled pe-none" : "")">
                     <i class="bi bi-download"></i> Export
                 </a>
+                @if (isOwner)
+                {
                 <button class="action-item text-danger @(anyModeActive ? "disabled" : "")"
                         data-bs-toggle="modal" data-bs-target="#deleteFolderModal" disabled="@anyModeActive">
                     <i class="bi bi-trash"></i> Delete
                 </button>
+                }
+                else
+                {
+                <button class="action-item text-danger @(anyModeActive ? "disabled" : "")"
+                        data-bs-toggle="modal" data-bs-target="#removeSharedModal" disabled="@anyModeActive">
+                    <i class="bi bi-x-circle"></i> Remove from shared with me
+                </button>
+                }
             </div>
 
             @if (manageMode)
@@ -273,15 +317,52 @@ new(Model.Name)
 </div>
 
 @* ═══════ Modals ═══════ *@
-@await Html.PartialAsync("_FolderDetailsModals", new ViewDataDictionary(ViewData)
+@if (canEdit)
 {
-{ "FolderId", Model.Id },
-{ "FolderName", Model.Name },
-{ "FolderDescription", Model.Description },
-{ "SwatchColors", swatchColors },
-{ "SwatchIcons", swatchIcons }
-})
-
+    @await Html.PartialAsync("_FolderDetailsModals", new ViewDataDictionary(ViewData)
+    {
+        { "FolderId", Model.Id },
+        { "FolderName", Model.Name },
+        { "FolderDescription", Model.Description },
+        { "SwatchColors", swatchColors },
+        { "SwatchIcons", swatchIcons }
+    })
+}
+@if (canShare)
+{
+    ViewData["ShareResourceType"] = "Folder";
+    ViewData["ShareResourceId"] = Model.Id;
+    ViewData["ShareResourceTitle"] = Model.Name;
+    <partial name="_ShareModal"/>
+}
+ 
+@if (!isOwner)
+{
+    <!-- Remove from Shared Modal -->
+    <div class="modal fade nv-modal" id="removeSharedModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle"></i> Remove from Shared
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Remove <strong>@Model.Name</strong> from your shared items?</p>
+                    <p class="text-muted small mb-0">
+                        The folder isn't deleted — it stays with @Model.OwnerName.
+                        You'd need them to share it again to regain access.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-pill btn-pill-danger" id="removeSharedBtn">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 <style>
     /* ─── Layout ─────────────────────────────────────── */
     .folder-details {
@@ -779,5 +860,33 @@ new(Model.Name)
         });
         window.location.href = `/Folders/Details/@Model.Id`;
     });
+
+    // ─── Remove from shared with me ──────────────────
+    (function () {
+        const btn = document.getElementById('removeSharedBtn');
+        if (!btn) return;
+
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = 'Removing…';
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            try {
+                const res = await fetch('/Shares/RemoveFromSharedWithMe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token ?? ''
+                    },
+                    body: JSON.stringify({ itemType: 'Folder', itemId: @Model.Id })
+                });
+                if (res.ok) {
+                    window.location.href = '/Shares/SharedWithMe';
+                    return;
+                }
+            } catch { /* fall through */ }
+            btn.disabled = false;
+            btn.textContent = 'Remove';
+        });
+    })();
 </script>
 }

@@ -27,6 +27,12 @@ else
                 <div class="result-row-top">
                     <i class="bi bi-journal-text row-icon"></i>
                     <span class="row-title">@cleanTitle</span>
+                    @if (r.IsShared)
+                    {
+                        <span class="shared-by-chip">
+                            <i class="bi bi-person"></i> Shared by @r.OwnerName
+                        </span>
+                    }
                     <span class="row-date">
                         <partial name="_LocalDate" model="r.UpdatedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
                     </span>

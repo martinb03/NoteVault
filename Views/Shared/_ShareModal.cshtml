@@ -1,0 +1,646 @@
+@{
+    var shareResourceType = (string)ViewData["ShareResourceType"]!;   // "Note" or "Folder"
+    var shareResourceId = (int)ViewData["ShareResourceId"]!;
+    var shareResourceTitle = (string)ViewData["ShareResourceTitle"]!;
+}
+
+<div class="modal fade nv-modal" id="shareModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-people"></i> Share &ldquo;@shareResourceTitle&rdquo;
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div id="shareError" class="text-danger small mb-3 d-none"></div>
+
+                <!-- ── Add people ── -->
+                <div class="share-section">
+                    <div class="share-section-label">Add people</div>
+
+                    <div class="share-search-wrap">
+                        <input type="text" id="shareUserSearch" class="form-control"
+                               placeholder="Search by name or email&hellip;" autocomplete="off"/>
+                        <div id="shareSearchResults" class="share-search-results d-none"></div>
+                    </div>
+
+                    <div id="sharePendingChips" class="d-flex flex-wrap gap-2 mt-2"></div>
+                </div>
+
+                <!-- ── People with access ── -->
+                <div class="share-section mt-4">
+                    <div class="share-section-label">People with access</div>
+                    <div id="shareAccessList" class="share-access-list">
+                        <div class="text-muted small py-2">Loading&hellip;</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-pill btn-pill-primary" id="shareSaveBtn" disabled>Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ─── Share modal ────────────────────────────────── */
+    .share-section-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid var(--border-soft);
+        margin-bottom: 0.75rem;
+    }
+
+    .share-search-wrap { position: relative; }
+
+    .share-search-results {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border: 1.5px solid var(--border-warm);
+        border-radius: var(--radius-card, 10px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+        max-height: 240px;
+        overflow-y: auto;
+        z-index: 20;
+    }
+    .share-search-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        transition: background-color 0.12s;
+    }
+    .share-search-item:hover { background-color: var(--hover-warm); }
+    .share-search-item .su-name {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .share-search-item .su-email {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+    .share-search-item .su-current {
+        font-size: 0.7rem;
+        color: var(--brand-orange);
+    }
+    .share-search-empty {
+        padding: 0.6rem 0.75rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    /* Pending chips (users about to be added) */
+    .share-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.35rem 0.25rem 0.65rem;
+        border-radius: var(--radius-pill);
+        border: 1.5px solid var(--brand-orange);
+        background-color: var(--hover-warm);
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .share-chip-remove {
+        background: none;
+        border: none;
+        padding: 0 0.15rem;
+        line-height: 1;
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+    .share-chip-remove:hover { color: var(--danger); }
+
+    /* Permission pill dropdown */
+    .perm-toggle {
+        background: none;
+        border: none;
+        padding: 0.1rem 0.4rem;
+        border-radius: var(--radius-pill);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .perm-toggle:hover { color: var(--brand-orange); background-color: var(--hover-warm); }
+    .perm-toggle i { font-size: 0.7rem; margin-left: 0.15rem; }
+    .perm-static {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        padding: 0.1rem 0.4rem;
+    }
+
+    /* Access list rows */
+    .share-access-list { display: flex; flex-direction: column; }
+    .share-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-soft);
+    }
+    .share-row:last-child { border-bottom: none; }
+    .share-row.is-removing { opacity: 0.45; }
+    .share-row-main { flex: 1; min-width: 0; }
+    .share-row-name {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .share-row-sub {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .share-row-remove {
+        background: none;
+        border: none;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 0.1rem 0.3rem;
+    }
+    .share-row-remove:hover { color: var(--danger); }
+    .share-row-undo {
+        background: none;
+        border: none;
+        font-size: 0.75rem;
+        color: var(--brand-orange);
+        cursor: pointer;
+        padding: 0.1rem 0.3rem;
+    }
+
+    /* Inline cascade confirmation */
+    .share-cascade {
+        padding: 0.6rem 0.75rem;
+        border-radius: var(--radius-card, 10px);
+        background-color: var(--hover-warm);
+        border: 1.5px solid var(--border-warm);
+        margin: 0.4rem 0;
+    }
+    .share-cascade-text {
+        font-size: 0.8rem;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+    .share-cascade-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+</style>
+
+<script>
+(function () {
+    const RESOURCE_TYPE = '@shareResourceType';           // "Note" | "Folder"
+    const RESOURCE_ID = @shareResourceId;
+
+    const PERMISSIONS = [
+        { value: 'View',         label: 'View only' },
+        { value: 'Edit',         label: 'Edit' },
+        { value: 'EditAndShare', label: 'Edit + Share' }
+    ];
+
+    const modalEl = document.getElementById('shareModal');
+    if (!modalEl) return;
+
+    const searchInput   = document.getElementById('shareUserSearch');
+    const searchResults = document.getElementById('shareSearchResults');
+    const pendingChips  = document.getElementById('sharePendingChips');
+    const accessList    = document.getElementById('shareAccessList');
+    const saveBtn       = document.getElementById('shareSaveBtn');
+    const errorBox      = document.getElementById('shareError');
+
+    // ── State ──
+    let isOwner = false;
+    let existingShares = [];                 // from server
+    const pendingAdds = new Map();           // userId -> { displayName, email, permission }
+    const pendingUpdates = new Map();        // userId -> permission
+    const pendingRemovals = new Map();       // userId -> { cascadeDownstream }
+    let searchTimer = null;
+
+    function token() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    }
+
+    function permLabel(value) {
+        return PERMISSIONS.find(p => p.value === value)?.label ?? value;
+    }
+
+    // Non-owners may only grant View or Edit — this ceiling is what keeps
+    // delegation chains from growing beyond one hop.
+    function grantablePermissions() {
+        return isOwner ? PERMISSIONS : PERMISSIONS.filter(p => p.value !== 'EditAndShare');
+    }
+
+    function hasChanges() {
+        return pendingAdds.size > 0 || pendingUpdates.size > 0 || pendingRemovals.size > 0;
+    }
+
+    function refreshSaveState() {
+        saveBtn.disabled = !hasChanges();
+    }
+
+    function showError(msg) {
+        errorBox.textContent = msg;
+        errorBox.classList.remove('d-none');
+    }
+
+    function clearError() {
+        errorBox.classList.add('d-none');
+        errorBox.textContent = '';
+    }
+
+    // ── Permission dropdown builder ──
+    function buildPermDropdown(currentValue, onPick) {
+        const wrap = document.createElement('div');
+        wrap.className = 'dropdown';
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'perm-toggle';
+        toggle.setAttribute('data-bs-toggle', 'dropdown');
+        toggle.innerHTML = `${permLabel(currentValue)}<i class="bi bi-chevron-down"></i>`;
+
+        const menu = document.createElement('ul');
+        menu.className = 'dropdown-menu';
+
+        const header = document.createElement('li');
+        header.innerHTML = '<h6 class="dropdown-header">Permissions</h6>';
+        menu.appendChild(header);
+
+        grantablePermissions().forEach(p => {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dropdown-item';
+            btn.textContent = p.label;
+            btn.addEventListener('click', () => {
+                toggle.innerHTML = `${permLabel(p.value)}<i class="bi bi-chevron-down"></i>`;
+                onPick(p.value);
+            });
+            li.appendChild(btn);
+            menu.appendChild(li);
+        });
+
+        wrap.appendChild(toggle);
+        wrap.appendChild(menu);
+        return wrap;
+    }
+
+    // ── Pending add chips ──
+    function renderPendingChips() {
+        pendingChips.innerHTML = '';
+
+        pendingAdds.forEach((entry, userId) => {
+            const chip = document.createElement('span');
+            chip.className = 'share-chip';
+
+            const name = document.createElement('span');
+            name.textContent = entry.displayName;
+            chip.appendChild(name);
+
+            chip.appendChild(buildPermDropdown(entry.permission, v => {
+                entry.permission = v;
+            }));
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'share-chip-remove';
+            removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+            removeBtn.addEventListener('click', () => {
+                pendingAdds.delete(userId);
+                renderPendingChips();
+                refreshSaveState();
+            });
+            chip.appendChild(removeBtn);
+
+            pendingChips.appendChild(chip);
+        });
+    }
+
+    // ── Access list ──
+    function renderAccessList(ownerName) {
+        accessList.innerHTML = '';
+
+        // Owner row — never editable
+        const ownerRow = document.createElement('div');
+        ownerRow.className = 'share-row';
+        ownerRow.innerHTML = `
+            <div class="share-row-main">
+                <div class="share-row-name">${escapeHtml(ownerName)}${isOwner ? ' (you)' : ''}</div>
+            </div>
+            <span class="perm-static">Owner</span>`;
+        accessList.appendChild(ownerRow);
+
+        if (existingShares.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'text-muted small py-2';
+            empty.textContent = 'Not shared with anyone yet.';
+            accessList.appendChild(empty);
+            return;
+        }
+
+        existingShares.forEach(share => {
+            accessList.appendChild(buildShareRow(share));
+        });
+    }
+
+    function buildShareRow(share) {
+        const row = document.createElement('div');
+        row.className = 'share-row';
+        row.dataset.userId = share.userId;
+
+        const isRemoved = pendingRemovals.has(share.userId);
+        if (isRemoved) row.classList.add('is-removing');
+
+        const main = document.createElement('div');
+        main.className = 'share-row-main';
+
+        const name = document.createElement('div');
+        name.className = 'share-row-name';
+        name.textContent = share.displayName;
+        main.appendChild(name);
+
+        const sub = document.createElement('div');
+        sub.className = 'share-row-sub';
+        // Only annotate provenance when someone other than the owner granted it
+        sub.textContent = share.sharedByUserId === share.ownerUserId
+            ? share.email
+            : `${share.email} · Shared by ${share.sharedByName}`;
+        main.appendChild(sub);
+
+        row.appendChild(main);
+
+        if (isRemoved) {
+            const undo = document.createElement('button');
+            undo.type = 'button';
+            undo.className = 'share-row-undo';
+            undo.textContent = 'Undo';
+            undo.addEventListener('click', () => {
+                pendingRemovals.delete(share.userId);
+                row.replaceWith(buildShareRow(share));
+                refreshSaveState();
+            });
+            row.appendChild(undo);
+            return row;
+        }
+
+        const currentPerm = pendingUpdates.get(share.userId) ?? share.permission;
+
+        if (share.canManage) {
+            row.appendChild(buildPermDropdown(currentPerm, v => {
+                if (v === share.permission) {
+                    pendingUpdates.delete(share.userId);
+                } else {
+                    pendingUpdates.set(share.userId, v);
+                }
+                refreshSaveState();
+            }));
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'share-row-remove';
+            removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+            removeBtn.title = 'Remove access';
+            removeBtn.addEventListener('click', () => {
+                if (share.downstreamCount > 0) {
+                    showCascadePrompt(row, share);
+                } else {
+                    pendingRemovals.set(share.userId, { cascadeDownstream: false });
+                    pendingUpdates.delete(share.userId);
+                    row.replaceWith(buildShareRow(share));
+                    refreshSaveState();
+                }
+            });
+            row.appendChild(removeBtn);
+        } else {
+            const perm = document.createElement('span');
+            perm.className = 'perm-static';
+            perm.textContent = permLabel(currentPerm);
+            row.appendChild(perm);
+        }
+
+        return row;
+    }
+
+    // Inline confirmation instead of a nested modal — Bootstrap handles
+    // stacked modals poorly and this keeps the decision next to the row.
+    function showCascadePrompt(row, share) {
+        const panel = document.createElement('div');
+        panel.className = 'share-cascade';
+
+        const n = share.downstreamCount;
+        panel.innerHTML = `
+            <div class="share-cascade-text">
+                <strong>${escapeHtml(share.displayName)}</strong> has shared this with
+                ${n} other ${n === 1 ? 'person' : 'people'}.
+            </div>`;
+
+        const actions = document.createElement('div');
+        actions.className = 'share-cascade-actions';
+
+        const removeAll = document.createElement('button');
+        removeAll.type = 'button';
+        removeAll.className = 'btn btn-pill btn-pill-danger btn-sm';
+        removeAll.textContent = 'Remove all';
+        removeAll.addEventListener('click', () => {
+            pendingRemovals.set(share.userId, { cascadeDownstream: true });
+            pendingUpdates.delete(share.userId);
+            panel.replaceWith(buildShareRow(share));
+            refreshSaveState();
+        });
+
+        const keepTheirs = document.createElement('button');
+        keepTheirs.type = 'button';
+        keepTheirs.className = 'btn btn-pill btn-pill-outline btn-sm';
+        keepTheirs.textContent = 'Keep theirs';
+        keepTheirs.addEventListener('click', () => {
+            pendingRemovals.set(share.userId, { cascadeDownstream: false });
+            pendingUpdates.delete(share.userId);
+            panel.replaceWith(buildShareRow(share));
+            refreshSaveState();
+        });
+
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'btn btn-pill btn-pill-outline btn-sm';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', () => {
+            panel.replaceWith(buildShareRow(share));
+        });
+
+        actions.append(removeAll, keepTheirs, cancel);
+        panel.appendChild(actions);
+        row.replaceWith(panel);
+    }
+
+    // ── User search ──
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        const q = searchInput.value.trim();
+
+        if (q.length < 2) {
+            searchResults.classList.add('d-none');
+            return;
+        }
+
+        searchTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/Users/Search?q=${encodeURIComponent(q)}`);
+                const users = await res.json();
+                renderSearchResults(users);
+            } catch {
+                searchResults.classList.add('d-none');
+            }
+        }, 250);
+    });
+
+    function renderSearchResults(users) {
+        searchResults.innerHTML = '';
+
+        // Hide anyone already staged as a pending add
+        const candidates = users.filter(u => !pendingAdds.has(u.userId));
+
+        if (candidates.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'share-search-empty';
+            empty.textContent = 'No users found.';
+            searchResults.appendChild(empty);
+            searchResults.classList.remove('d-none');
+            return;
+        }
+
+        candidates.forEach(u => {
+            const existing = existingShares.find(s => s.userId === u.userId);
+
+            const item = document.createElement('div');
+            item.className = 'share-search-item';
+            item.innerHTML = `
+                <span class="su-name">${escapeHtml(u.displayName)}</span>
+                <span class="su-email">${escapeHtml(u.email)}</span>
+                ${existing ? `<span class="su-current">Currently: ${permLabel(existing.permission)}</span>` : ''}`;
+
+            item.addEventListener('click', () => {
+                pendingAdds.set(u.userId, {
+                    displayName: u.displayName,
+                    email: u.email,
+                    permission: 'Edit'
+                });
+                searchInput.value = '';
+                searchResults.classList.add('d-none');
+                renderPendingChips();
+                refreshSaveState();
+            });
+
+            searchResults.appendChild(item);
+        });
+
+        searchResults.classList.remove('d-none');
+    }
+
+    document.addEventListener('click', e => {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.add('d-none');
+        }
+    });
+
+    // ── Load state when the modal opens ──
+    modalEl.addEventListener('show.bs.modal', async () => {
+        clearError();
+        pendingAdds.clear();
+        pendingUpdates.clear();
+        pendingRemovals.clear();
+        searchInput.value = '';
+        searchResults.classList.add('d-none');
+        pendingChips.innerHTML = '';
+        accessList.innerHTML = '<div class="text-muted small py-2">Loading&hellip;</div>';
+        refreshSaveState();
+
+        const url = RESOURCE_TYPE === 'Note'
+            ? `/Shares/GetNoteShares?noteId=${RESOURCE_ID}`
+            : `/Shares/GetFolderShares?folderId=${RESOURCE_ID}`;
+
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+
+            isOwner = data.isCurrentUserOwner;
+            existingShares = data.shares.map(s => ({ ...s, ownerUserId: data.ownerUserId }));
+            renderAccessList(data.ownerName);
+        } catch {
+            accessList.innerHTML = '';
+            showError('Could not load sharing details.');
+        }
+    });
+
+    // ── Save ──
+    saveBtn.addEventListener('click', async () => {
+        clearError();
+        saveBtn.disabled = true;
+
+        const payload = {
+            resourceId: RESOURCE_ID,
+            adds: Array.from(pendingAdds, ([userId, e]) => ({ userId, permission: e.permission })),
+            updates: Array.from(pendingUpdates, ([userId, permission]) => ({ userId, permission })),
+            removals: Array.from(pendingRemovals, ([userId, r]) => ({
+                userId,
+                cascadeDownstream: r.cascadeDownstream
+            }))
+        };
+
+        const url = RESOURCE_TYPE === 'Note'
+            ? '/Shares/UpdateNoteShares'
+            : '/Shares/UpdateFolderShares';
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token() ?? ''
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                let msg = 'Could not save sharing changes.';
+                try {
+                    const err = await res.json();
+                    if (err?.error) msg = err.error;
+                } catch { /* non-JSON response */ }
+                showError(msg);
+                refreshSaveState();
+                return;
+            }
+
+            window.location.reload();
+        } catch {
+            showError('Could not save sharing changes.');
+            refreshSaveState();
+        }
+    });
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str ?? '';
+        return div.innerHTML;
+    }
+})();
+</script>

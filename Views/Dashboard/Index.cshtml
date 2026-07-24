@@ -61,15 +61,6 @@
         grid-template-columns: repeat(3, 1fr);
         gap: 2rem;
     }
-    .dashboard-random-row {
-        display: flex;
-        justify-content: center;
-        margin-top: 2rem;
-    }
-    .dashboard-random-row .soft-card {
-        width: 60%;
-        min-width: 320px;
-    }
     @@media (max-width: 768px) {
         .dashboard-grid { grid-template-columns: 1fr; }
     }
@@ -106,46 +97,24 @@
         padding: 1rem 0;
         font-style: italic;
     }
-
-    /* Random card specific */
-    .random-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        text-decoration: none;
-        display: block;
-        margin-bottom: 0.4rem;
-    }
-    .random-title:hover {
-        color: var(--brand-orange);
-    }
-    .random-meta {
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        margin-bottom: 0.65rem;
-        display: flex;
+    .dash-explore-link {
+        display: inline-flex;
         align-items: center;
         gap: 0.3rem;
+        margin-top: 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--brand-orange);
+        text-decoration: none;
     }
-    .random-content {
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        line-height: 1.5;
-        margin-bottom: 0.75rem;
-        max-height: 4.5em;
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-    }
-    .random-tags {
-        margin-bottom: 1rem;
-        display: flex;
-        gap: 0.3rem;
-        flex-wrap: wrap;
-    }
-    .random-tags:empty {
-        margin-bottom: 0;
+    .dash-explore-link:hover { text-decoration: underline; }
+
+    /* Folder rows in the shared card get the same icon treatment */
+    .dash-row i.bi-folder {
+        color: var(--brand-orange);
+        opacity: 0.7;
+        font-size: 1rem;
+        flex-shrink: 0;
     }
 </style>
 
@@ -154,7 +123,7 @@
     {
         <div class="welcome-card">
             <h2>Welcome, @Model.DisplayName</h2>
-            <p>You don't have any notes yet. Create one to get started.</p>
+            <p>You don't have any notes yet, and nothing has been shared with you. Create a note to get started.</p>
             <a asp-controller="Notes" asp-action="Index" class="btn btn-pill btn-pill-primary">
                 <i class="bi bi-plus-lg"></i> New Note
             </a>
@@ -176,6 +145,37 @@
             <!-- Grid -->
             <div class="dashboard-grid">
 
+                <!-- Recently Shared With Me -->
+                <div class="soft-card">
+                    <div class="dashboard-section-header">
+                        <i class="bi bi-people"></i>
+                        <span>Recently Shared With Me</span>
+                    </div>
+                    @if (Model.RecentlyShared.Any())
+                    {
+                        @foreach (var item in Model.RecentlyShared)
+                        {
+                            var isNote = item.ItemType == "Note";
+                            var url = isNote
+                                ? Url.Action("Details", "Notes", new { id = item.Id })
+                                : Url.Action("Details", "Folders", new { id = item.Id });
+ 
+                            <a href="@url" class="dash-row">
+                                <i class="bi @(isNote ? "bi-journal-text" : "bi-folder")"></i>
+                                <span class="dash-title">@item.Title</span>
+                                <span class="dash-meta">@item.SharedByName</span>
+                            </a>
+                        }
+                        <a asp-controller="Shares" asp-action="SharedWithMe" class="dash-explore-link">
+                            Explore <i class="bi bi-arrow-right"></i>
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="empty-section">Nothing shared with you yet.</div>
+                    }
+                </div>
+                
                 <!-- Recently Opened -->
                 <div class="soft-card">
                     <div class="dashboard-section-header">
@@ -245,78 +245,7 @@
                     }
                 </div>
                 
-                <!-- Random -->
-                <div class="soft-card" id="randomCard">
-                    <div class="dashboard-section-header">
-                        <i class="bi bi-dice-5"></i>
-                        <span>Random</span>
-                    </div>
-                    @if (Model.Random != null)
-                    {
-                        <a asp-controller="Notes" asp-action="Details" asp-route-id="@Model.Random.Id" class="random-title" id="randomTitle">
-                            @Model.Random.Title
-                        </a>
-                        <div class="random-meta" id="randomMeta">
-                            @if (!string.IsNullOrEmpty(Model.Random.FolderName))
-                            {
-                                <i class="bi bi-folder"></i><span>@Model.Random.FolderName</span>
-                            }
-                        </div>
-                        <div class="random-content" id="randomContent">
-                            @(string.IsNullOrWhiteSpace(Model.Random.ContentPreview) ? "(empty note)" : Model.Random.ContentPreview)
-                        </div>
-                        <div class="random-tags" id="randomTags">
-                            @foreach (var t in Model.Random.Tags.Take(4))
-                            {
-                                <span class="note-tag-badge" style="border-color: @(t.Color ?? "#868E96"); background-color: @((t.Color ?? "#868E96") + "33");">@t.Name</span>
-                            }
-                        </div>
-                        <button type="button" class="btn btn-pill btn-pill-outline" id="shuffleBtn">
-                            <i class="bi bi-shuffle"></i> Shuffle
-                        </button>
-                    }
-                </div>
             </div>
         </div>
     }
 </div>
-
-<script>
-(function() {
-    const shuffleBtn = document.getElementById('shuffleBtn');
-    if (!shuffleBtn) return;
-
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    shuffleBtn.addEventListener('click', async function() {
-        shuffleBtn.disabled = true;
-        try {
-            const res = await fetch('/Dashboard/ShuffleRandom');
-            const data = await res.json();
-            if (!data.success) return;
-
-            const n = data.note;
-            document.getElementById('randomTitle').textContent = n.title;
-            document.getElementById('randomTitle').href = `/Notes/Details/${n.id}`;
-
-            const metaEl = document.getElementById('randomMeta');
-            metaEl.innerHTML = n.folderName ? `<i class="bi bi-folder"></i><span>${escapeHtml(n.folderName)}</span>` : '';
-
-            const contentEl = document.getElementById('randomContent');
-            contentEl.textContent = n.contentPreview && n.contentPreview.trim() ? n.contentPreview : '(empty note)';
-
-            const tagsEl = document.getElementById('randomTags');
-            tagsEl.innerHTML = (n.tags || []).slice(0, 4).map(t => {
-                const color = t.color || '#868E96';
-                return `<span class="note-tag-badge" style="border-color: ${color}; background-color: ${color}33;">${escapeHtml(t.name)}</span>`;
-            }).join('');
-        } catch (e) {
-            console.error(e);
-        } finally {
-            shuffleBtn.disabled = false;
-        }
-    });
-})();
-</script>

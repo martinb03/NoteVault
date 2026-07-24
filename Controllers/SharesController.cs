@@ -54,6 +54,7 @@ public class SharesController : Controller
 
         var model = BuildShareModal(
             ownerName: note.User.DisplayName,
+            ownerUserId: note.UserId,
             isOwner: permission == EffectivePermission.Owner,
             permission: permission,
             currentUserId: userId,
@@ -95,6 +96,7 @@ public class SharesController : Controller
 
         var model = BuildShareModal(
             ownerName: folder.User.DisplayName,
+            ownerUserId: folder.UserId,
             isOwner: permission == EffectivePermission.Owner,
             permission: permission,
             currentUserId: userId,
@@ -112,6 +114,7 @@ public class SharesController : Controller
 
     private static ShareModalViewModel BuildShareModal(
         string ownerName,
+        string ownerUserId,
         bool isOwner,
         EffectivePermission permission,
         string currentUserId,
@@ -121,6 +124,7 @@ public class SharesController : Controller
         return new ShareModalViewModel
         {
             OwnerName = ownerName,
+            OwnerUserId = ownerUserId,
             IsCurrentUserOwner = isOwner,
             CurrentUserPermission = permission.ToString(),
             Shares = shares.Select(s => new ShareEntryViewModel

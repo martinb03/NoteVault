@@ -38,6 +38,11 @@
     };
 
     var fromParam = Context.Request.Query["from"].ToString();
+    
+    var perm = Model.CurrentUserPermission;
+    var canEdit = perm is "Edit" or "EditAndShare" or "Owner";
+    var canShare = perm is "EditAndShare" or "Owner";
+    var isOwner = Model.IsOwner;
 }
 
 <partial name="_Breadcrumb"/>
@@ -55,6 +60,16 @@
             <div class="note-info-section">
                 <div class="note-info-label">Info</div>
                 <div class="note-info-value">
+                    @if (!isOwner)
+                    {
+                        <div class="meta-row">
+                            <i class="bi bi-person"></i>
+                            <div>
+                                <div class="meta-row-label">Owned by</div>
+                                <span>@Model.OwnerName</span>
+                            </div>
+                        </div>
+                    }
                     @if (!string.IsNullOrEmpty(Model.FolderName))
                     {
                         <div class="meta-row">
@@ -109,17 +124,46 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             }
-
+            
+            @if (Model.CopiedFromUserId != null && Model.CopiedFromUserName != null)
+            {
+                <div class="note-status-bar">
+                    <span class="note-status-chip">
+                        <i class="bi bi-copy"></i>
+                        Copy of @Model.CopiedFromUserName's &ldquo;@Model.CopiedFromTitle&rdquo;
+                    </span>
+                </div>
+            }
+ 
+            @if (Model.LockHeldByUserId != null && Model.LockHeldByName != null)
+            {
+                <div class="note-status-bar">
+                    <span class="note-status-chip note-status-lock">
+                        <i class="bi bi-lock"></i>
+                        @Model.LockHeldByName is currently editing
+                    </span>
+                    @if (isOwner)
+                    {
+                        <button type="button" class="btn btn-pill btn-pill-outline btn-sm" id="takeControlBtn">
+                            Take control
+                        </button>
+                    }
+                </div>
+            }
+            
             <div class="soft-card note-content-card">
                 @if (string.IsNullOrWhiteSpace(Model.Content))
                 {
                     <div class="empty-state">
                         <i class="bi bi-pencil-square"></i>
                         <p>This note is empty.</p>
-                        <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-from="@fromParam"
-                           class="btn btn-pill btn-pill-outline mt-2">
-                            <i class="bi bi-pencil"></i> Start Writing
-                        </a>
+                        @if (canEdit)
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-from="@fromParam"
+                               class="btn btn-pill btn-pill-outline mt-2">
+                                <i class="bi bi-pencil"></i> Start Writing
+                            </a>
+                        }
                     </div>
                 }
                 else
@@ -134,21 +178,48 @@
         <!-- ═══════ Right Sidebar: Actions ═══════ -->
         <aside class="note-right">
             <div class="action-list">
-                <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-from="@fromParam" class="action-item">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
+                @if (canEdit)
+                {
+                    <a asp-action="Edit" asp-route-id="@Model.Id" asp-route-from="@fromParam" class="action-item">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                }
+                @if (canShare)
+                {
+                    <button class="action-item" data-bs-toggle="modal" data-bs-target="#shareModal">
+                        <i class="bi bi-people"></i> Share
+                    </button>
+                }
+                @if (!isOwner)
+                {
+                    <button class="action-item" data-bs-toggle="modal" data-bs-target="#saveCopyModal">
+                        <i class="bi bi-copy"></i> Save to My Vault
+                    </button>
+                }
                 <a asp-action="Export" asp-route-id="@Model.Id" class="action-item">
                     <i class="bi bi-download"></i> Export
                 </a>
-                <button class="action-item" data-bs-toggle="modal" data-bs-target="#changeFolderModal">
-                    <i class="bi bi-folder-symlink"></i> Choose Folder
-                </button>
+                @if (isOwner)
+                {
+                    <button class="action-item" data-bs-toggle="modal" data-bs-target="#changeFolderModal">
+                        <i class="bi bi-folder-symlink"></i> Choose Folder
+                    </button>
+                }
                 <a asp-action="Versions" asp-route-id="@Model.Id" asp-route-from="@fromParam" class="action-item">
                     <i class="bi bi-clock-history"></i> View Versions
                 </a>
-                <button class="action-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteNoteModal">
-                    <i class="bi bi-trash"></i> Delete
-                </button>
+                @if (isOwner)
+                {
+                    <button class="action-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteNoteModal">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                }
+                else
+                {
+                    <button class="action-item text-danger" data-bs-toggle="modal" data-bs-target="#removeSharedModal">
+                        <i class="bi bi-x-circle"></i> Remove from shared with me
+                    </button>
+                }
             </div>
         </aside>
     </div>
@@ -217,64 +288,131 @@
     </div>
 </div>
 
-<!-- Change Folder Modal -->
-<div class="modal fade nv-modal" id="changeFolderModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-folder-symlink"></i> Change Folder
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form asp-action="ChangeFolder" method="post" id="changeFolderForm" class="nv-form">
-                <input type="hidden" name="id" value="@Model.Id"/>
-                <div class="modal-body">
-                    <label class="form-label">Folder</label>
-                    <select name="folderId" class="form-select" id="folderSelect">
-                        <option value="" selected="@(Model.FolderId == null)">Unfiled</option>
-                        @foreach (var folder in Model.AvailableFolders)
-                        {
-                            <option value="@folder.Id" selected="@(folder.Id == Model.FolderId)">@folder.Name</option>
-                        }
-                    </select>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-pill btn-pill-primary" id="saveFolderBtn" disabled>Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
-<!-- Delete Note Modal -->
-<div class="modal fade nv-modal" id="deleteNoteModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle"></i> Delete Note
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete <strong>@Model.Title</strong>?</p>
-                <p class="text-muted small">This note will be moved to the trash.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
-                <form asp-action="Delete" method="post">
+@if (isOwner)
+{
+    <!-- Change Folder Modal -->
+    <div class="modal fade nv-modal" id="changeFolderModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-folder-symlink"></i> Change Folder
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-action="ChangeFolder" method="post" id="changeFolderForm" class="nv-form">
                     <input type="hidden" name="id" value="@Model.Id"/>
-                    <button type="submit" class="btn btn-pill btn-pill-danger">Delete</button>
+                    <div class="modal-body">
+                        <label class="form-label">Folder</label>
+                        <select name="folderId" class="form-select" id="folderSelect">
+                            <option value="" selected="@(Model.FolderId == null)">Unfiled</option>
+                            @foreach (var folder in Model.AvailableFolders)
+                            {
+                                <option value="@folder.Id" selected="@(folder.Id == Model.FolderId)">@folder.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-pill btn-pill-primary" id="saveFolderBtn" disabled>Save</button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Delete Note Modal -->
+    <div class="modal fade nv-modal" id="deleteNoteModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle"></i> Delete Note
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@Model.Title</strong>?</p>
+                    <p class="text-muted small">This note will be moved to the trash.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <form asp-action="Delete" method="post">
+                        <input type="hidden" name="id" value="@Model.Id"/>
+                        <button type="submit" class="btn btn-pill btn-pill-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@if (canShare)
+{
+    ViewData["ShareResourceType"] = "Note";
+    ViewData["ShareResourceId"] = Model.Id;
+    ViewData["ShareResourceTitle"] = Model.Title;
+    <partial name="_ShareModal"/>
+}
+
+@if (!isOwner)
+{
+    <!-- Save to My Vault Modal -->
+    <div class="modal fade nv-modal" id="saveCopyModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-copy"></i> Save to My Vault
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>This creates your own copy of <strong>@Model.Title</strong>.</p>
+                    <p class="text-muted small mb-0">
+                        The copy is a snapshot — later changes by @Model.OwnerName won't appear in it,
+                        and it stays yours even if this note stops being shared with you.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-pill btn-pill-primary" id="saveCopyBtn">Save Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+ 
+    <!-- Remove from Shared Modal -->
+    <div class="modal fade nv-modal" id="removeSharedModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle"></i> Remove from Shared
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Remove <strong>@Model.Title</strong> from your shared items?</p>
+                    <p class="text-muted small mb-0">
+                        The note isn't deleted — it stays with @Model.OwnerName.
+                        You'd need them to share it again to regain access.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-pill btn-pill-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-pill btn-pill-danger" id="removeSharedBtn">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <style>
-    /* ─── Layout ──────────────────────────────────────── */
+    /* ------- Layout ------- */
     .note-details {
         max-width: 1400px;
         margin: 0.5rem auto 2rem auto;
@@ -289,7 +427,7 @@
     .note-center { flex: 1; min-width: 0; }
     .note-right { flex: 0 0 16%; position: sticky; top: 80px; }
 
-    /* ─── Left: Hero + Info ──────────────────────────── */
+    /* ------- Left: Hero + Info ------- */
     .note-hero {
         display: flex;
         align-items: flex-start;
@@ -349,7 +487,7 @@
         letter-spacing: 0.03em;
     }
 
-    /* ─── Center: Content card ───────────────────────── */
+    /* ------- Center: Content card ------- */
     .empty-state .btn i{
         font-size: inherit;
         color: inherit;
@@ -394,7 +532,7 @@
         font-size: 0.9em;
     }
 
-    /* ─── Tag chips ──────────────────────────────────── */
+    /* ------- Tag chips ------- */
     .tag-chip {
         display: inline-flex;
         align-items: center;
@@ -460,7 +598,7 @@
     }
     .tag-chip-picker:active { transform: scale(0.97); }
 
-    /* ─── Inline Create Tag form ─────────────────────── */
+    /* ------- Inline Create Tag form ------- */
     .create-tag-inline {
         margin-top: 1rem;
         padding-top: 1rem;
@@ -471,7 +609,7 @@
         outline-offset: 1px;
     }
 
-    /* ─── Action list (right sidebar) ────────────────── */
+    /* ------- Action list (right sidebar) ------- */
     .action-list {
         display: flex;
         flex-direction: column;
@@ -536,6 +674,31 @@
     .action-item.text-danger { color: var(--danger); }
     .action-item.text-danger i { color: var(--danger); }
 
+    .note-status-bar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-bottom: 0.6rem;
+    }
+    .note-status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.7rem;
+        border-radius: var(--radius-pill);
+        border: 1.5px solid var(--border-warm);
+        background-color: var(--surface);
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+    }
+    .note-status-chip i { font-size: 0.8rem; }
+    .note-status-lock {
+        border-color: var(--brand-orange);
+        color: var(--brand-orange);
+        background-color: var(--hover-warm);
+    }
+    
     @@media (max-width: 992px) {
         .note-cols { flex-direction: column; }
         .note-left, .note-right { flex: 1 1 100%; width: 100%; position: static; }
@@ -543,7 +706,7 @@
 </style>
 
 <script>
-    // ── Tag picker selection ──
+    // --- Tag picker selection ---
     function bindPickerChip(chip) {
         chip.addEventListener('click', function() {
             this.classList.toggle('selected');
@@ -551,7 +714,7 @@
     }
     document.querySelectorAll('.tag-chip-picker').forEach(bindPickerChip);
 
-    // ── Save selected tags ──
+    // --- Save selected tags ---
     document.getElementById('addTagsForm').addEventListener('submit', function(e) {
         this.querySelectorAll('input[name="tagIds"]').forEach(i => i.remove());
         const selected = document.querySelectorAll('.tag-chip-picker.selected');
@@ -564,7 +727,7 @@
         });
     });
 
-    // ── Show inline Create Tag form ──
+    // --- Show inline Create Tag form ---
     const showCreateBtn = document.getElementById('showCreateTagInline');
     const createInline = document.getElementById('createTagInline');
     const cancelCreateBtn = document.getElementById('cancelCreateTagBtn');
@@ -587,7 +750,7 @@
         selectedCreateTagColor = null;
     }
 
-    // ── Create tag swatch selection ──
+    // --- Create tag swatch selection ---
     let selectedCreateTagColor = null;
     document.querySelectorAll('.create-tag-swatch').forEach(swatch => {
         swatch.addEventListener('click', function() {
@@ -597,7 +760,7 @@
         });
     });
 
-    // ── Create new tag (AJAX) ──
+    // --- Create new tag (AJAX) ---
     document.getElementById('createTagBtn').addEventListener('click', async function() {
         const nameInput = document.getElementById('createTagName');
         const errorBox = document.getElementById('createTagError');
@@ -647,11 +810,92 @@
         }
     });
 
-    // ── Change folder save button ──
+    // --- Change folder save button ---
     const folderSelect = document.getElementById('folderSelect');
     const saveBtn = document.getElementById('saveFolderBtn');
     const initialFolderId = '@(Model.FolderId?.ToString() ?? "")';
     folderSelect.addEventListener('change', () => {
         saveBtn.disabled = folderSelect.value === initialFolderId;
     });
+
+    // --- Sharing actions ---
+    (function () {
+        function token() {
+            return document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        }
+
+        async function postJson(url, payload) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token() ?? ''
+                },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        function busy(btn, label) {
+            btn.disabled = true;
+            btn.textContent = label;
+        }
+
+        const saveCopyBtn = document.getElementById('saveCopyBtn');
+        if (saveCopyBtn) {
+            saveCopyBtn.addEventListener('click', async () => {
+                busy(saveCopyBtn, 'Saving…');
+                try {
+                    const res = await postJson('/Shares/SaveCopy', { noteId: @Model.Id });
+                    const data = await res.json();
+                    if (data.success) {
+                        window.location.href = `/Notes/Details/${data.newNoteId}`;
+                        return;
+                    }
+                } catch { /* fall through */ }
+                saveCopyBtn.disabled = false;
+                saveCopyBtn.textContent = 'Save Copy';
+            });
+        }
+
+        const removeSharedBtn = document.getElementById('removeSharedBtn');
+        if (removeSharedBtn) {
+            removeSharedBtn.addEventListener('click', async () => {
+                busy(removeSharedBtn, 'Removing…');
+                try {
+                    const res = await postJson('/Shares/RemoveFromSharedWithMe', {
+                        itemType: 'Note',
+                        itemId: @Model.Id
+                    });
+                    if (res.ok) {
+                        window.location.href = '/Shares/SharedWithMe';
+                        return;
+                    }
+                } catch { /* fall through */ }
+                removeSharedBtn.disabled = false;
+                removeSharedBtn.textContent = 'Remove';
+            });
+        }
+
+        const takeControlBtn = document.getElementById('takeControlBtn');
+        if (takeControlBtn) {
+            takeControlBtn.addEventListener('click', async () => {
+                busy(takeControlBtn, 'Taking…');
+                const formData = new FormData();
+                const t = token();
+                if (t) formData.append('__RequestVerificationToken', t);
+                try {
+                    const res = await fetch('/Notes/TakeControl/@Model.Id', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (res.ok) {
+                        window.location.href = '/Notes/Edit/@Model.Id';
+                        return;
+                    }
+                } catch { /* fall through */ }
+                takeControlBtn.disabled = false;
+                takeControlBtn.textContent = 'Take control';
+            });
+        }
+    })();
 </script>
