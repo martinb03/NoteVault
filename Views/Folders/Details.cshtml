@@ -157,6 +157,7 @@ new(Model.Name)
                 @await Html.PartialAsync("_FolderPile", new ViewDataDictionary(ViewData)
                 {
                 { "Pile", pile },
+                { "CanEdit", canEdit },
                 { "IsPinned", false },
                 { "ActiveManagePileId", activeManagePileId },
                 { "ActiveReorderNotesPileId", activeReorderNotesPileId },

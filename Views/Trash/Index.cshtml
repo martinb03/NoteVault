@@ -88,7 +88,7 @@ Layout = "_Layout";
                     <i class="bi bi-folder row-icon"></i>
                     <span class="row-title">@f.Name</span>
                     <span class="row-meta">
-                                        @f.Piles.Count piles · @f.Notes.Count notes
+                        · @f.Piles.Count piles · @f.Notes.Count notes
                                         ·
                                         <partial name="_LocalDate" model="f.DeletedAt" view-data="@(new ViewDataDictionary(ViewData) { { "Format", "date" } })"/>
                                     </span>
@@ -124,7 +124,7 @@ Layout = "_Layout";
                         }
                         else
                         {
-                        <span style="font-size: 0.95rem;">@p.Icon</span>
+                            <i class="bi @p.Icon row-icon"></i>
                         }
                         <span class="row-title">@p.Name</span>
                     </div>
@@ -169,7 +169,7 @@ Layout = "_Layout";
             }
             else
             {
-            <span style="font-size: 1rem;">@p.Icon</span>
+                <i class="bi @p.Icon row-icon"></i>
             }
             <span class="row-title">@p.Name</span>
             @if (p.FolderName != null)
