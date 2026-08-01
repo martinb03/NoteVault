@@ -39,8 +39,7 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Dashboard");
         }
  
-        var settings = await _context.AppSettings.FirstOrDefaultAsync(s => s.Id == 1);
-        ViewData["IsRegistrationOpen"] = settings?.IsRegistrationOpen ?? false;
+        await SetRegistrationFlagAsync();
         
         return View(new LoginViewModel());
     }
@@ -51,6 +50,7 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid)
         {
+            await SetRegistrationFlagAsync();
             return View(model);
         }
  
@@ -72,6 +72,7 @@ public class AccountController : Controller
         }
  
         ModelState.AddModelError(string.Empty, "Invalid email or password.");
+        await SetRegistrationFlagAsync();
         return View(model);
     }
     
@@ -126,5 +127,11 @@ public class AccountController : Controller
             ModelState.AddModelError(string.Empty, error.Description);
         }
         return View(model);
+    }
+
+    private async Task SetRegistrationFlagAsync()
+    {
+        var settings = await _context.AppSettings.FirstOrDefaultAsync(s => s.Id == 1);
+        ViewData["IsRegistrationOpen"] = settings?.IsRegistrationOpen ?? false;
     }
 }
