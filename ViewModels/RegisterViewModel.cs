@@ -14,6 +14,6 @@ public class RegisterViewModel
 
     [Required]
     [DataType(DataType.Password)]
-    [MinLength(8, ErrorMessage = "Password must be at least 8 characters.")]
+    [MinLength(10, ErrorMessage = "Password must be at least 10 characters.")]
     public string Password { get; set; } = string.Empty;
 }
