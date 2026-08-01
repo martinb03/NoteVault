@@ -92,8 +92,8 @@
                     {
                         var isNote = item.ItemType == "Note";
                         var url = isNote
-                            ? Url.Action("Details", "Notes", new { id = item.Id })
-                            : Url.Action("Details", "Folders", new { id = item.Id });
+                            ? Url.Action("Details", "Notes", new { id = item.Id, from = "shares" })
+                            : Url.Action("Details", "Folders", new { id = item.Id, from = "shares" });
 
                         <a href="@url"
                            class="trash-row text-decoration-none shared-row"

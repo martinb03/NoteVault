@@ -113,4 +113,5 @@ public class VersionDetailsViewModel
     public DateTime CreatedAt { get; set; }
     public int? FolderId { get; set; }
     public string? FolderName { get; set; }
+    public bool IsOwner { get; set; }
 }

@@ -5,11 +5,20 @@
     ViewData["Title"] = "Versions";
     Layout = "_Layout";
 
+    var fromShares = Context.Request.Query["from"] == "shares";
     var fromNotes = Context.Request.Query["from"] == "notes";
     var fromParam = Context.Request.Query["from"].ToString();
     var crumbs = new List<BreadcrumbItem>();
 
-    if (!fromNotes && Model.FolderId != null)
+    if (fromShares)
+    {
+        crumbs.Add(new("Shared", Url.Action("SharedWithMe", "Shares")));
+        if (Model.FolderId != null && !string.IsNullOrEmpty(Model.FolderName))
+        {
+            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId, from = "shares" })));
+        }
+    }
+    else if (!fromNotes && Model.FolderId != null)
     {
         crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
         crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
@@ -18,7 +27,7 @@
     {
         crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
     }
-    crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
+    crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromParam })));
     crumbs.Add(new("Versions"));
     ViewData["Breadcrumb"] = crumbs;
 }

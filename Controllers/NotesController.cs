@@ -150,6 +150,20 @@ public class NotesController : Controller
      
         var isOwner = permission == EffectivePermission.Owner;
      
+        // Expose the folder to the view only if the user can open it, so
+        // breadcrumbs and folder links never point somewhere they'd be forbidden.
+        int? accessibleFolderId = null;
+        string? accessibleFolderName = null;
+        if (note.FolderId != null)
+        {
+            var folderPerm = await _permissionService.GetFolderPermissionAsync(userId, note.FolderId.Value);
+            if (folderPerm != EffectivePermission.None)
+            {
+                accessibleFolderId = note.FolderId;
+                accessibleFolderName = note.Folder?.Name;
+            }
+        }
+        
         // Only track access stats for the owner viewing their own note,
         // otherwise "Frequently visited" would be skewed by recipients.
         if (isOwner)
@@ -218,8 +232,8 @@ public class NotesController : Controller
             Id = note.Id,
             Title = note.Title,
             Content = note.Content,
-            FolderId = note.FolderId,
-            FolderName = note.Folder?.Name,
+            FolderId = accessibleFolderId,
+            FolderName = accessibleFolderName,
             CreatedAt = note.CreatedAt,
             UpdatedAt = note.UpdatedAt,
             VersionCount = note.Versions.Count,
@@ -272,13 +286,25 @@ public class NotesController : Controller
             }
         }
  
+        int? accessibleFolderId = null;
+        string? accessibleFolderName = null;
+        if (note.FolderId != null)
+        {
+            var folderPerm = await _permissionService.GetFolderPermissionAsync(userId, note.FolderId.Value);
+            if (folderPerm != EffectivePermission.None)
+            {
+                accessibleFolderId = note.FolderId;
+                accessibleFolderName = note.Folder?.Name;
+            }
+        }
+        
         var model = new EditNoteViewModel
         {
             Id = note.Id,
             Title = note.Title,
             Content = note.Content,
-            FolderId = note.FolderId,
-            FolderName = note.Folder?.Name,
+            FolderId = accessibleFolderId,
+            FolderName = accessibleFolderName,
             UpdatedAt = note.UpdatedAt,
             CurrentUserPermission = permission.ToString(),
             IsOwner = permission == EffectivePermission.Owner,
@@ -492,12 +518,24 @@ public class NotesController : Controller
  
         if (note == null) return NotFound();
  
+        int? accessibleFolderId = null;
+        string? accessibleFolderName = null;
+        if (note.FolderId != null)
+        {
+            var folderPerm = await _permissionService.GetFolderPermissionAsync(userId, note.FolderId.Value);
+            if (folderPerm != EffectivePermission.None)
+            {
+                accessibleFolderId = note.FolderId;
+                accessibleFolderName = note.Folder?.Name;
+            }
+        }
+        
         var model = new VersionListPageViewModel
         {
             NoteId = note.Id,
             NoteTitle = note.Title,
-            FolderId = note.FolderId,
-            FolderName = note.Folder?.Name,
+            FolderId = accessibleFolderId,
+            FolderName = accessibleFolderName,
             Versions = note.Versions
                 .OrderByDescending(v => v.VersionNumber)
                 .Select(v => new VersionListItemViewModel
@@ -530,6 +568,18 @@ public class NotesController : Controller
         if (permission == EffectivePermission.None)
             return Forbid();
  
+        int? accessibleFolderId = null;
+        string? accessibleFolderName = null;
+        if (version.Note.FolderId != null)
+        {
+            var folderPerm = await _permissionService.GetFolderPermissionAsync(userId, version.Note.FolderId.Value);
+            if (folderPerm != EffectivePermission.None)
+            {
+                accessibleFolderId = version.Note.FolderId;
+                accessibleFolderName = version.Note.Folder?.Name;
+            }
+        }
+        
         var model = new VersionDetailsViewModel
         {
             Id = version.Id,
@@ -539,8 +589,9 @@ public class NotesController : Controller
             Name = version.Name,
             Content = version.Content,
             CreatedAt = version.CreatedAt,
-            FolderId = version.Note.FolderId,
-            FolderName = version.Note.Folder?.Name
+            FolderId = accessibleFolderId,
+            FolderName = accessibleFolderName,
+            IsOwner = permission == EffectivePermission.Owner
         };
  
         return View(model);

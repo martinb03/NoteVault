@@ -2,26 +2,36 @@
 @model NoteVault.ViewModels.EditNoteViewModel
 
 @{
-ViewData["Title"] = Model.Title;
-Layout = "_Layout";
+    ViewData["Title"] = Model.Title;
+    Layout = "_Layout";
 
-var fromNotes = Context.Request.Query["from"] == "notes";
-var crumbs = new List<BreadcrumbItem>();
+    var fromShares = Context.Request.Query["from"] == "shares";
+    var fromNotes = Context.Request.Query["from"] == "notes";
+    var fromParam = Context.Request.Query["from"].ToString();
+    var crumbs = new List<BreadcrumbItem>();
 
-if (!fromNotes && Model.FolderId != null)
-{
-crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
-crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
-}
-else
-{
-crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
-}
-crumbs.Add(new(Model.Title, Url.Action("Details", "Notes", new { id = Model.Id, from = fromNotes ? "notes" : null })));
-crumbs.Add(new("Edit"));
-ViewData["Breadcrumb"] = crumbs;
-var isLocked = Model.LockHeldByUserId != null;
-var lockLost = Context.Request.Query["lockLost"] == "1";
+    if (fromShares)
+    {
+        crumbs.Add(new("Shared", Url.Action("SharedWithMe", "Shares")));
+        if (Model.FolderId != null && !string.IsNullOrEmpty(Model.FolderName))
+        {
+            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId, from = "shares" })));
+        }
+    }
+    else if (!fromNotes && Model.FolderId != null)
+    {
+        crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
+        crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
+    }
+    else
+    {
+        crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
+    }
+    crumbs.Add(new(Model.Title, Url.Action("Details", "Notes", new { id = Model.Id, from = fromParam })));
+    crumbs.Add(new("Edit"));
+    ViewData["Breadcrumb"] = crumbs;
+    var isLocked = Model.LockHeldByUserId != null;
+    var lockLost = Context.Request.Query["lockLost"] == "1";
 }
 
 <!-- Quill CSS -->

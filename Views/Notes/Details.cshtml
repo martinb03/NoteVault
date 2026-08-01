@@ -5,13 +5,22 @@
     ViewData["Title"] = Model.Title;
     Layout = "_Layout";
 
+    var fromShares = Context.Request.Query["from"] == "shares";
     var fromNotes = Context.Request.Query["from"] == "notes";
     var fromTags = Context.Request.Query["from"] == "tags";
     var fromSearch = Context.Request.Query["from"] == "search";
     var returnUrl = Context.Request.Query["returnUrl"].ToString();
     var crumbs = new List<BreadcrumbItem>();
 
-    if (fromSearch)
+    if (fromShares)
+    {
+        crumbs.Add(new("Shared", Url.Action("SharedWithMe", "Shares")));
+        if (Model.FolderId != null && !string.IsNullOrEmpty(Model.FolderName))
+        {
+            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId, from = "shares" })));
+        }
+    }
+    else if (fromSearch)
     {
         crumbs.Add(new("Search", string.IsNullOrEmpty(returnUrl) ? Url.Action("Results", "Search") : returnUrl));
     }

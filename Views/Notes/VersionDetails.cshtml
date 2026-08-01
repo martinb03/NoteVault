@@ -5,11 +5,20 @@
     ViewData["Title"] = Model.Name ?? $"Version {Model.VersionNumber}";
     Layout = "_Layout";
 
+    var fromShares = Context.Request.Query["from"] == "shares";
     var fromNotes = Context.Request.Query["from"] == "notes";
     var fromParam = Context.Request.Query["from"].ToString();
     var crumbs = new List<BreadcrumbItem>();
 
-    if (!fromNotes && Model.FolderId != null)
+    if (fromShares)
+    {
+        crumbs.Add(new("Shared", Url.Action("SharedWithMe", "Shares")));
+        if (Model.FolderId != null && !string.IsNullOrEmpty(Model.FolderName))
+        {
+            crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId, from = "shares" })));
+        }
+    }
+    else if (!fromNotes && Model.FolderId != null)
     {
         crumbs.Add(new("Folders", Url.Action("Index", "Folders")));
         crumbs.Add(new(Model.FolderName!, Url.Action("Details", "Folders", new { id = Model.FolderId })));
@@ -18,8 +27,8 @@
     {
         crumbs.Add(new("Notes", Url.Action("Index", "Notes")));
     }
-    crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
-    crumbs.Add(new("Versions", Url.Action("Versions", "Notes", new { id = Model.NoteId, from = fromNotes ? "notes" : null })));
+    crumbs.Add(new(Model.NoteTitle, Url.Action("Details", "Notes", new { id = Model.NoteId, from = fromParam })));
+    crumbs.Add(new("Versions", Url.Action("Versions", "Notes", new { id = Model.NoteId, from = fromParam })));
     crumbs.Add(new(Model.Name ?? $"Version {Model.VersionNumber}"));
     ViewData["Breadcrumb"] = crumbs;
 }
@@ -98,18 +107,27 @@
         <!-- ═══════ Right Sidebar: Actions ═══════ -->
         <aside class="version-right">
             <div class="action-list">
-                <button class="action-item" data-bs-toggle="modal" data-bs-target="#editTitleModal">
-                    <i class="bi bi-pencil"></i> Edit Title
-                </button>
-                <button class="action-item" data-bs-toggle="modal" data-bs-target="#restoreVersionModal">
-                    <i class="bi bi-arrow-counterclockwise"></i> Restore
-                </button>
+                @if (Model.IsOwner)
+                {
+                    <button class="action-item" data-bs-toggle="modal" data-bs-target="#editTitleModal">
+                        <i class="bi bi-pencil"></i> Edit Title
+                    </button>
+                }
+                @if (Model.IsOwner)
+                {
+                    <button class="action-item" data-bs-toggle="modal" data-bs-target="#restoreVersionModal">
+                        <i class="bi bi-arrow-counterclockwise"></i> Restore
+                    </button>
+                }
                 <a href="#" class="action-item">
                     <i class="bi bi-download"></i> Export
                 </a>
-                <button class="action-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteVersionModal">
-                    <i class="bi bi-trash"></i> Delete
-                </button>
+                @if (Model.IsOwner)
+                {
+                    <button class="action-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteVersionModal">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                }
             </div>
         </aside>
     </div>
