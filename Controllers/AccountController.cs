@@ -58,7 +58,7 @@ public class AccountController : Controller
             model.Email,
             model.Password,
             model.RememberMe,
-            lockoutOnFailure: false);
+            lockoutOnFailure: true);
  
         if (result.Succeeded)
         {
@@ -69,6 +69,13 @@ public class AccountController : Controller
             }
 
             return RedirectToAction("Index", "Dashboard");
+        }
+        
+        if (result.IsLockedOut)
+        {
+            ModelState.AddModelError(string.Empty, "This account is temporarily locked due to multiple failed attempts. Try again in a few minutes.");
+            await SetRegistrationFlagAsync();
+            return View(model);
         }
  
         ModelState.AddModelError(string.Empty, "Invalid email or password.");
